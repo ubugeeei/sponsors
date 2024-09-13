@@ -1,0 +1,4 @@
+.cache.json
+.env
+node_modules
+sponsors.json
