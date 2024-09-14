@@ -12,26 +12,26 @@ export default defineConfig({
       preset: tierPresets.xs,
     },
     {
-      title: 'chibi fun',
+      title: 'chibi Funs',
       preset: tierPresets.small,
     },
     {
-      title: 'drink sponsor',
+      title: 'Drink Sponsors',
       monthlyDollars: 4,
       preset: tierPresets.medium,
     },
     {
-      title: 'lunch sponsor',
+      title: 'Lunch Sponsors',
       monthlyDollars: 8,
       preset: tierPresets.large,
     },
     {
-      title: 'shiropractic sponsor',
+      title: 'Shiropractic Sponsors',
       monthlyDollars: 24,
       preset: tierPresets.large,
     },
     {
-      title: 'slightly fancier hair salon sponsor',
+      title: 'Slightly Fancier Hair Salon Sponsors',
       monthlyDollars: 64,
       preset: tierPresets.xl,
     },
