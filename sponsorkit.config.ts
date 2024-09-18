@@ -1,39 +1,40 @@
-import { defineConfig, tierPresets } from 'sponsorkit'
+import { defineConfig, tierPresets } from "sponsorkit";
 
 export default defineConfig({
-  outputDir: '.',
+  outputDir: ".",
   width: 800,
-  formats: ['svg', 'png'],
-  renderer: 'tiers',
+  formats: ["svg", "png"],
+  renderer: "tiers",
+  force: true,
   tiers: [
     {
-      title: 'Past Sponsors',
+      title: "Past Sponsors",
       monthlyDollars: -1,
       preset: tierPresets.xs,
     },
     {
-      title: 'chibi Funs',
+      title: "chibi Funs",
       preset: tierPresets.small,
     },
     {
-      title: 'Drink Sponsors',
+      title: "Drink Sponsors",
       monthlyDollars: 4,
       preset: tierPresets.medium,
     },
     {
-      title: 'Lunch Sponsors',
+      title: "Lunch Sponsors",
       monthlyDollars: 8,
       preset: tierPresets.large,
     },
     {
-      title: 'Shiropractic Sponsors',
+      title: "Shiropractic Sponsors",
       monthlyDollars: 24,
       preset: tierPresets.large,
     },
     {
-      title: 'Slightly Fancier Hair Salon Sponsors',
+      title: "Slightly Fancier Hair Salon Sponsors",
       monthlyDollars: 64,
       preset: tierPresets.xl,
     },
   ],
-})
+});
