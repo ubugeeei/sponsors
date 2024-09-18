@@ -1,5 +1,8 @@
 name: scheduled update sponsors
 
+permissions:
+  contents: write
+
 on:
   workflow_dispatch:
   schedule:
