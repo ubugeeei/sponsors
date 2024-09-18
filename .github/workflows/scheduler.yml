@@ -1,31 +1,39 @@
 name: scheduled update sponsors
+
 on:
   workflow_dispatch:
   schedule:
-    - cron: '*/5 * * * *'
+    - cron: "*/5 * * * *"
   push:
     branches:
       - main
-permissions:
-  contents: write
+
 jobs:
   update-sponsors:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - name: Set node
+        uses: actions/setup-node@v4
         with:
-          node-version-file: package.json
-      - uses: pnpm/action-setup@v3
-      - run: pnpm install
-      - run: pnpm run build
+          node-version-file: lts/*
+
+      - run: npx pnpm i
+
+      - name: Update sponsors
+        run: npm run build
         env:
           SPONSORKIT_GITHUB_TOKEN: ${{ secrets.SPONSORKIT_GITHUB_TOKEN }}
           SPONSORKIT_GITHUB_LOGIN: ubugeeei
           SPONSORKIT_GITHUB_TYPE: user
-      - uses: EndBug/add-and-commit@v9
+
+      - name: Commit
+        uses: EndBug/add-and-commit@v9
         with:
-          add: "sponsors.*"
           message: "chore: update sponsors"
+          add: "sponsors.*"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
