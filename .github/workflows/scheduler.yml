@@ -2,7 +2,7 @@ name: scheduled update sponsors
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 * * * *'
+    - cron: '*/5 * * * *'
   push:
     branches:
       - main
@@ -23,7 +23,6 @@ jobs:
           SPONSORKIT_GITHUB_TOKEN: ${{ secrets.SPONSORKIT_GITHUB_TOKEN }}
           SPONSORKIT_GITHUB_LOGIN: ubugeeei
           SPONSORKIT_GITHUB_TYPE: user
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - uses: EndBug/add-and-commit@v9
         with:
           add: "sponsors.*"
