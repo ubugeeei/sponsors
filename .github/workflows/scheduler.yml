@@ -36,6 +36,7 @@ jobs:
       - name: Commit
         uses: EndBug/add-and-commit@v9
         with:
+          author_name: GitHub Actions
           message: "chore: update sponsors"
           add: "sponsors.*"
         env:
