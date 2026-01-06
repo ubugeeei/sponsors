@@ -6,7 +6,7 @@ permissions:
 on:
   workflow_dispatch:
   schedule:
-    - cron: "*/15 * * * *"
+    - cron: "0 0 * * *"
   push:
     branches:
       - main
@@ -17,21 +17,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
+      - name: Setup bun
+        uses: oven-sh/setup-bun@v1
 
-      - name: Set node
-        uses: actions/setup-node@v4
-        with:
-          node-version: lts/*
-
-      - run: npx pnpm i
+      - run: bun install
 
       - name: Update sponsors
-        run: npm run build
+        run: bun run build
         env:
-          SPONSORKIT_GITHUB_TOKEN: ${{ secrets.SPONSORKIT_GITHUB_TOKEN }}
-          SPONSORKIT_GITHUB_LOGIN: ubugeeei
-          SPONSORKIT_GITHUB_TYPE: user
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_LOGIN: ubugeeei
 
       - name: Commit
         uses: EndBug/add-and-commit@v9
