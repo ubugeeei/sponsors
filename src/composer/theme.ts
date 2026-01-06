@@ -91,7 +91,7 @@ export const typographyConfig = {
 export const layoutConfig = {
   // SVG overall
   width: 800,
-  minHeight: 400,
+  minHeight: 600,
   padding: 32,
 
   // Tier section
