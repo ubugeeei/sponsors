@@ -92,7 +92,7 @@ export const layoutConfig = {
   // SVG overall
   width: 800,
   minHeight: 400,
-  padding: 20,
+  padding: 32,
 
   // Tier section
   tierTitleSize: 28,
