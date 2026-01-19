@@ -1,6 +1,5 @@
 /**
- * エレガントなスポンサー表示テーマ定義
- * ライトエレガントなビジュアルスタイル
+ * Clean, minimal, artistic theme
  */
 
 export interface ElegantTheme {
@@ -16,114 +15,91 @@ export interface ElegantTheme {
   shadowHeavy: string;
   text: string;
   textSecondary: string;
+  textMuted: string;
   border: string;
   tierColors: Record<string, string>;
   fontFamily: string;
+  fontFamilyDisplay: string;
 }
 
 export const elegantTheme: ElegantTheme = {
-  // Main colors
-  background: '#0F1419',
-  backgroundGradientStart: '#1A1F2E',
-  backgroundGradientEnd: '#0F1419',
+  background: '#000000',
+  backgroundGradientStart: '#000000',
+  backgroundGradientEnd: '#000000',
   primaryDark: '#FFFFFF',
-  primaryLight: '#E8E8E8',
-  accent: '#FFD700',
-  accentLight: '#FFF8DC',
-  accentDark: '#FFA500',
-
-  // Shadow
-  shadow: 'rgba(255, 215, 0, 0.1)',
-  shadowHeavy: 'rgba(255, 215, 0, 0.2)',
-
-  // Text color
+  primaryLight: '#FFFFFF',
+  accent: '#FFFFFF',
+  accentLight: '#FFFFFF',
+  accentDark: '#888888',
+  shadow: 'rgba(255, 255, 255, 0.1)',
+  shadowHeavy: 'rgba(255, 255, 255, 0.2)',
   text: '#FFFFFF',
-  textSecondary: '#B8B8B8',
-  border: 'rgba(255, 215, 0, 0.3)',
-
-  // Tier colors
+  textSecondary: '#888888',
+  textMuted: '#555555',
+  border: 'rgba(255, 255, 255, 0.2)',
   tierColors: {
-    platinum: '#E8E8E8',
-    gold: '#FFD700',
-    silver: '#C0C0C0',
-    bronze: '#CD7F32',
-    supporter: '#FFA500',
+    platinum: '#FFFFFF',
+    gold: '#FFFFFF',
+    silver: '#AAAAAA',
+    bronze: '#888888',
+    supporter: '#666666',
+    past: '#444444',
   },
-
-  // Font settings (Japanese support with Zen Kaku Gothic New - bold & distinctive)
-  fontFamily: "'Zen Kaku Gothic New', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif",
+  fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+  fontFamilyDisplay: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
 };
 
 export const typographyConfig = {
-  // Tier title
   tierTitle: {
-    fontSize: 24,
-    fontWeight: 700,
-    letterSpacing: 0.06,
-    fill: elegantTheme.accent,
-  },
-
-  // Sponsor name
-  sponsorName: {
     fontSize: 14,
-    fontWeight: 500,
-    letterSpacing: 0.015,
+    fontWeight: 600,
+    letterSpacing: 0.1,
+    fill: elegantTheme.textSecondary,
+  },
+  sponsorName: {
+    fontSize: 11,
+    fontWeight: 400,
+    letterSpacing: 0,
     fill: elegantTheme.text,
   },
-
-  // Support amount
   sponsorAmount: {
-    fontSize: 11,
-    fontWeight: 700,
-    letterSpacing: 0.03,
-    fill: elegantTheme.accent,
-  },
-
-  // Caption text
-  caption: {
     fontSize: 10,
     fontWeight: 400,
-    letterSpacing: 0.02,
+    letterSpacing: 0,
     fill: elegantTheme.textSecondary,
+  },
+  caption: {
+    fontSize: 9,
+    fontWeight: 400,
+    letterSpacing: 0,
+    fill: elegantTheme.textMuted,
   },
 };
 
 export const layoutConfig = {
-  // SVG overall
   width: 800,
-  minHeight: 600,
-  padding: 32,
-
-  // Tier section
-  tierTitleSize: 28,
-  tierPadding: 16,
-  tierGap: 80,
-
-  // Sponsor item (modern minimalist)
-  cardWidth: 180,
-  cardHeight: 56,
+  minHeight: 400,
+  padding: 48,
+  tierTitleSize: 14,
+  tierPadding: 32,
+  tierGap: 24,
+  cardWidth: 64,
+  cardHeight: 64,
   cardRadius: 0,
-  cardGap: 18,
-  cardPadding: 8,
-
-  // Avatar
-  avatarSize: 50,
-  avatarRadius: 25,
-
-  // Decoration
+  cardGap: 12,
+  cardPadding: 0,
+  avatarSize: 48,
+  avatarRadius: 24,
   decorationLineWidth: 1,
-  decorationLineGap: 15,
-  dotPatternSize: 20,
+  decorationLineGap: 16,
+  dotPatternSize: 32,
 };
 
 export const filterConfig = {
-  // Drop shadow
-  dropShadowBlur: 8,
-  dropShadowOffsetY: 4,
-  dropShadowOpacity: 0.3,
-
-  // Text shadow
-  textShadowBlur: 2,
-  textShadowOffsetY: 2,
-  textShadowOpacity: 0.5,
+  dropShadowBlur: 0,
+  dropShadowOffsetY: 0,
+  dropShadowOpacity: 0,
+  textShadowBlur: 0,
+  textShadowOffsetY: 0,
+  textShadowOpacity: 0,
 };

@@ -1,6 +1,5 @@
 /**
- * タイムラインレイアウト計算ロジック
- * スポンサーの配置位置とティア間隔を計算
+ * Clean grid layout calculation
  */
 
 import { layoutConfig } from './theme';
@@ -25,93 +24,81 @@ export interface ComposedLayout {
 }
 
 /**
- * ティアのレイアウトを計算
- * カードの数に基づいて、効率的な配置を計算
+ * Calculate tier layout with proper spacing
  */
 export function calculateTierLayout(
   sponsorCount: number,
-  tierIndex: number
+  tierIndex: number,
+  tierTitle: string = ''
 ): TierLayout {
-  const { padding, cardWidth, cardHeight, cardGap, tierPadding, tierGap } = layoutConfig;
+  const { padding, avatarSize, cardGap } = layoutConfig;
   const canvasWidth = layoutConfig.width;
 
-  // ティア内のカード幅（ギャップを含む）
-  const cardWidthWithGap = cardWidth + cardGap;
+  const isPast = tierTitle.toLowerCase().includes('past');
+  const scale = isPast ? 0.7 : 1;
+  const actualAvatarSize = avatarSize * scale;
+  const actualGap = isPast ? 8 : cardGap;
 
-  // 1行に配置できるカード数を計算
-  const maxCardsPerRow = Math.floor((canvasWidth - padding * 2) / cardWidthWithGap);
-  const actualCardsPerRow = Math.min(sponsorCount, maxCardsPerRow);
+  const itemWidth = actualAvatarSize + actualGap;
+  const maxPerRow = Math.floor((canvasWidth - padding * 2 + actualGap) / itemWidth);
+  const perRow = Math.min(sponsorCount, maxPerRow);
+  const rows = Math.ceil(sponsorCount / perRow);
 
-  // 行数を計算
-  const rowCount = Math.ceil(sponsorCount / actualCardsPerRow);
-
-  // 各行の高さ
-  const rowHeight = cardHeight + cardGap;
-  const tiersTotal = rowCount * rowHeight;
-
-  // カード位置を計算
   const cards: LayoutPosition[] = [];
   for (let i = 0; i < sponsorCount; i++) {
-    const row = Math.floor(i / actualCardsPerRow);
-    const col = i % actualCardsPerRow;
+    const row = Math.floor(i / perRow);
+    const col = i % perRow;
+    const rowCount = Math.min(sponsorCount - row * perRow, perRow);
+    const rowWidth = rowCount * itemWidth - actualGap;
+    const startX = (canvasWidth - rowWidth) / 2;
 
-    // 行全体の幅を計算（中央寄せ）
-    const rowActualCardsCount = Math.min(
-      sponsorCount - row * actualCardsPerRow,
-      actualCardsPerRow
-    );
-    const rowTotalWidth = rowActualCardsCount * cardWidthWithGap - cardGap;
-    const rowStartX = (canvasWidth - rowTotalWidth) / 2;
-
-    const x = rowStartX + col * cardWidthWithGap;
-    const y = padding + tierPadding + (tierIndex > 0 ? tierIndex * tierGap : 0) + row * rowHeight;
-
-    cards.push({ x, y });
+    cards.push({
+      x: startX + col * itemWidth,
+      y: row * (actualAvatarSize + actualGap),
+    });
   }
 
-  // ティアタイトル位置
-  const titleY = padding + tierPadding + (tierIndex > 0 ? tierIndex * tierGap : 0) - 20;
+  const contentHeight = rows * (actualAvatarSize + actualGap);
 
   return {
-    title: { x: padding, y: titleY },
+    title: { x: padding, y: 0 },
     cards,
-    totalHeight: tiersTotal + tierGap,
+    totalHeight: contentHeight,
   };
 }
 
 /**
- * 複数ティアのレイアウト全体を計算
+ * Calculate complete layout
  */
 export function calculateComposedLayout(
-  tierSponsors: Array<Array<any>>
+  tierSponsors: Array<Array<any>>,
+  tierTitles: string[] = []
 ): ComposedLayout {
-  const { padding, tierGap } = layoutConfig;
+  const { padding, tierPadding } = layoutConfig;
   const canvasWidth = layoutConfig.width;
+  const titleHeight = 24;
+  const sectionGap = 48;
 
   let currentY = padding;
   const tiers: TierLayout[] = [];
 
-  for (let tierIndex = 0; tierIndex < tierSponsors.length; tierIndex++) {
-    const sponsors = tierSponsors[tierIndex];
+  for (let i = 0; i < tierSponsors.length; i++) {
+    const sponsors = tierSponsors[i];
+    if (sponsors.length === 0) continue;
 
-    if (sponsors.length === 0) {
-      continue; // スポンサーがないティアはスキップ
-    }
+    const tierTitle = tierTitles[i] || '';
+    const tierLayout = calculateTierLayout(sponsors.length, i, tierTitle);
 
-    const tierLayout = calculateTierLayout(sponsors.length, tierIndex);
-
-    // Y 座標を更新
     tierLayout.title.y = currentY;
-    tierLayout.cards = tierLayout.cards.map((card) => ({
+
+    const avatarsStartY = currentY + titleHeight + tierPadding;
+    tierLayout.cards = tierLayout.cards.map(card => ({
       x: card.x,
-      y: card.y + (currentY - padding - tierGap * tierIndex),
+      y: card.y + avatarsStartY,
     }));
 
-    tierLayout.connectorStartY = currentY - 10;
-    tierLayout.connectorEndY = currentY + tierLayout.totalHeight - tierGap;
-
     tiers.push(tierLayout);
-    currentY += tierLayout.totalHeight;
+    currentY = avatarsStartY + tierLayout.totalHeight + sectionGap;
   }
 
   const totalHeight = currentY + padding;
@@ -123,52 +110,28 @@ export function calculateComposedLayout(
   };
 }
 
-/**
- * グリッドスナップ機能（オプション）
- * 位置を グリッド値に合わせる
- */
-export function snapToGrid(value: number, gridSize: number = 5): number {
+export function snapToGrid(value: number, gridSize: number = 4): number {
   return Math.round(value / gridSize) * gridSize;
 }
 
-/**
- * 高さの最適化（最小高さ以上であることを保証）
- */
-export function ensureMinHeight(
-  height: number,
-  minHeight: number = layoutConfig.minHeight
-): number {
+export function ensureMinHeight(height: number, minHeight: number = layoutConfig.minHeight): number {
   return Math.max(height, minHeight);
 }
 
-/**
- * レイアウトのバウンディングボックスを計算
- */
 export function calculateBounds(layout: ComposedLayout) {
-  const { padding } = layoutConfig;
-  const { cardWidth, cardHeight } = layoutConfig;
-
-  let minX = Infinity;
-  let minY = Infinity;
-  let maxX = 0;
-  let maxY = 0;
+  const { padding, avatarSize } = layoutConfig;
+  let minX = Infinity, minY = Infinity, maxX = 0, maxY = 0;
 
   for (const tier of layout.tiers) {
     for (const card of tier.cards) {
       minX = Math.min(minX, card.x);
       minY = Math.min(minY, card.y);
-      maxX = Math.max(maxX, card.x + cardWidth);
-      maxY = Math.max(maxY, card.y + cardHeight);
+      maxX = Math.max(maxX, card.x + avatarSize);
+      maxY = Math.max(maxY, card.y + avatarSize);
     }
-
     minX = Math.min(minX, tier.title.x);
     minY = Math.min(minY, tier.title.y);
   }
 
-  return {
-    x: minX,
-    y: minY,
-    width: maxX - minX + padding,
-    height: maxY - minY + padding,
-  };
+  return { x: minX, y: minY, width: maxX - minX + padding, height: maxY - minY + padding };
 }

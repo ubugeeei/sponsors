@@ -1,24 +1,27 @@
 /**
- * スポンサーシップシステムの型定義
+ * Type definitions for the sponsorship system
  */
 
 export interface Sponsor {
-  /** GitHub ユーザー名またはオーガニゼーション名 */
+  /** GitHub username or organization name */
   login: string;
 
-  /** 表示名 */
+  /** Display name */
   name: string;
 
-  /** アバター画像 URL */
+  /** Avatar image URL */
   avatarUrl: string;
 
-  /** GitHub プロフィール URL */
+  /** GitHub profile URL */
   profile: string;
 
-  /** 月額サポート額（ドル） */
+  /** Monthly support amount (in dollars) */
   monthlyDollars: number;
 
-  /** ティア情報 */
+  /** Whether the sponsor is currently active */
+  isActive: boolean;
+
+  /** Tier information */
   tier?: {
     title: string;
     monthlyPriceInDollars: number;
@@ -26,25 +29,26 @@ export interface Sponsor {
 }
 
 export interface Tier {
-  /** ティアタイトル */
+  /** Tier title */
   title: string;
 
-  /** 月額最小金額（ドル） */
+  /** Minimum monthly amount (in dollars) */
   monthlyDollars: number;
 }
 
 export interface SponsorData {
-  /** スポンサーリスト */
+  /** List of sponsors */
   sponsors: Sponsor[];
 
-  /** ティアリスト */
+  /** List of tiers */
   tiers: Tier[];
 }
 
-/** GitHub GraphQL レスポンスの型 */
+/** GitHub GraphQL response type */
 export interface GitHubSponsorship {
-  createdAt: string;
-  privacyLevel: 'PUBLIC' | 'PRIVATE';
+  createdAt?: string;
+  privacyLevel?: 'PUBLIC' | 'PRIVATE';
+  isActive: boolean;
   tier: {
     name: string;
     monthlyPriceInCents: number;

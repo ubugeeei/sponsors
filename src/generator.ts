@@ -83,41 +83,55 @@ async function main() {
       );
     }
 
-    console.log('🚀 Starting sponsor generation...');
-    console.log(`   GitHub Login: ${config.githubLogin}`);
+    console.log('');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('  SPONSOR KIT - Monochrome Edition');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log(`  GitHub: ${config.githubLogin}`);
+    console.log('');
 
     // Step 1: GitHub API からスポンサーデータを取得
-    console.log('📡 Fetching sponsors from GitHub...');
+    console.log('→ Fetching sponsors from GitHub...');
     const sponsors = await fetchSponsors(config.githubToken, config.githubLogin);
-    console.log(`✓ Fetched ${sponsors.length} sponsors`);
+    console.log(`  ✓ Found ${sponsors.length} sponsors`);
 
     // Step 1.5: アバター画像を base64 に変換
-    console.log('🖼️  Embedding avatar images...');
+    console.log('→ Embedding avatar images...');
     await embedAvatarImages(sponsors);
-    console.log(`✓ Avatar images embedded`);
 
     // Step 2: スポンサーをティアごとに分類
-    console.log('📋 Classifying sponsors by tier...');
+    console.log('→ Classifying sponsors by tier...');
     const classifiedSponsors = classifySponsors(sponsors, config.tiers);
 
     // デバッグ: ティアごとのスポンサー数を表示
     for (const [tierTitle, tierSponsors] of classifiedSponsors) {
-      console.log(`   ${tierTitle}: ${tierSponsors.length} sponsors`);
+      const count = tierSponsors.length;
+      if (count > 0) {
+        console.log(`  • ${tierTitle}: ${count}`);
+      }
     }
 
     // ティア順に並べたスポンサー配列を作成
     const tierSponsors = config.tiers.map((tier) => classifiedSponsors.get(tier.title) || []);
 
-    // Step 3: SVG を生成
-    console.log('🎨 Generating SVG...');
-    // elegantComposer accepts pre-classified tier sponsors
-    const svgContent = elegantComposer(tierSponsors, config.tiers, config.width);
+    // Step 3: SVG を生成（通常版）
+    console.log('→ Generating SVG (with background)...');
+    const svgContent = elegantComposer(tierSponsors, config.tiers, config.width, { transparent: false });
     const svgBuffer = Buffer.from(svgContent, 'utf-8');
+
+    // Step 3.5: SVG を生成（透過版）
+    console.log('→ Generating SVG (transparent)...');
+    const svgTransparentContent = elegantComposer(tierSponsors, config.tiers, config.width, { transparent: true });
 
     // Step 4: SVG をファイルに保存
     const svgPath = `${config.outputDir}/sponsors.svg`;
     writeFileSync(svgPath, svgContent, 'utf-8');
-    console.log(`✓ SVG saved: ${svgPath}`);
+    console.log(`  ✓ ${svgPath}`);
+
+    // 透過版 SVG を保存
+    const svgTransparentPath = `${config.outputDir}/sponsors-transparent.svg`;
+    writeFileSync(svgTransparentPath, svgTransparentContent, 'utf-8');
+    console.log(`  ✓ ${svgTransparentPath}`);
 
     // Step 4.5: HTML ラッパーも出力（iframe 用）
     const htmlContent = `<!DOCTYPE html>
@@ -130,7 +144,11 @@ async function main() {
     body {
       margin: 0;
       padding: 0;
-      background: #0F1419;
+      background: #0A0A0A;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
     }
     svg {
       display: block;
@@ -145,22 +163,36 @@ ${svgContent}
 </html>`;
     const htmlPath = `${config.outputDir}/sponsors.html`;
     writeFileSync(htmlPath, htmlContent, 'utf-8');
-    console.log(`✓ HTML saved: ${htmlPath}`);
+    console.log(`  ✓ ${htmlPath}`);
 
-    // Step 5: PNG に変換
-    console.log('🖼️  Converting to PNG...');
+    // Step 5: PNG に変換（通常版）
+    console.log('→ Converting to PNG (with background)...');
     const pngPath = `${config.outputDir}/sponsors.png`;
     try {
       await convertToPng(svgBuffer, pngPath);
+      console.log(`  ✓ ${pngPath}`);
     } catch (pngError) {
-      console.warn('⚠️  PNG generation failed, but SVG/HTML were created successfully');
+      console.warn('  ⚠ PNG generation failed');
     }
 
-    console.log('✨ Sponsor generation completed successfully!');
-    console.log(`   📄 SVG: ${svgPath}`);
-    console.log(`   🖼️  PNG: ${pngPath}`);
+    // Step 5.5: PNG に変換（透過版）
+    console.log('→ Converting to PNG (transparent)...');
+    const pngTransparentPath = `${config.outputDir}/sponsors-transparent.png`;
+    try {
+      const svgTransparentBuffer = Buffer.from(svgTransparentContent, 'utf-8');
+      await convertToPng(svgTransparentBuffer, pngTransparentPath, true);
+      console.log(`  ✓ ${pngTransparentPath}`);
+    } catch (pngError) {
+      console.warn('  ⚠ Transparent PNG generation failed');
+    }
+
+    console.log('');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('  ✓ Generation completed');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('');
   } catch (error) {
-    console.error('❌ Error:', error);
+    console.error('✗ Error:', error);
     process.exit(1);
   }
 }

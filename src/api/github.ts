@@ -9,9 +9,9 @@ import type { Sponsor, GitHubSponsorship, GitHubSponsorshipResponse } from '../t
 import { execSync } from 'child_process';
 
 const SPONSORS_QUERY = `
-  query($login: String!, $cursor: String) {
+  query($login: String!, $cursor: String, $activeOnly: Boolean!) {
     user(login: $login) {
-      sponsorshipsAsMaintainer(first: 100, after: $cursor) {
+      sponsorshipsAsMaintainer(first: 100, after: $cursor, activeOnly: $activeOnly) {
         totalCount
         pageInfo {
           hasNextPage
@@ -57,16 +57,67 @@ function getGhToken(): string | null {
 }
 
 /**
- * GitHub Sponsors API からスポンサーデータを取得
+ * Fetch sponsors with specific activeOnly flag
  */
-export async function fetchSponsors(
-  token: string | undefined,
-  login: string
+async function fetchSponsorsWithFlag(
+  authToken: string,
+  login: string,
+  activeOnly: boolean
 ): Promise<Sponsor[]> {
   const sponsors: Sponsor[] = [];
   let cursor: string | null = null;
   let hasNextPage = true;
 
+  while (hasNextPage) {
+    const response = await graphql<GitHubSponsorshipResponse>(SPONSORS_QUERY, {
+      headers: {
+        authorization: `token ${authToken}`,
+      },
+      login,
+      cursor,
+      activeOnly,
+    });
+
+    const sponsorships = response.user.sponsorshipsAsMaintainer;
+    const pageInfo = sponsorships.pageInfo;
+
+    // スポンサーシップを処理
+    for (const node of sponsorships.nodes) {
+      // ティア情報がない場合はスキップ
+      if (!node.tier) {
+        continue;
+      }
+
+      sponsors.push({
+        login: node.sponsorEntity.login,
+        name: node.sponsorEntity.name || node.sponsorEntity.login,
+        avatarUrl: node.sponsorEntity.avatarUrl,
+        profile: node.sponsorEntity.url,
+        monthlyDollars: node.tier.monthlyPriceInCents / 100,
+        isActive: !activeOnly ? true : true, // Will be set correctly later
+        tier: {
+          title: node.tier.name,
+          monthlyPriceInDollars: node.tier.monthlyPriceInCents / 100,
+        },
+      });
+    }
+
+    // ページネーション処理
+    hasNextPage = pageInfo.hasNextPage;
+    cursor = pageInfo.endCursor;
+  }
+
+  return sponsors;
+}
+
+/**
+ * GitHub Sponsors API からスポンサーデータを取得
+ * Uses two queries to determine active vs past sponsors
+ */
+export async function fetchSponsors(
+  token: string | undefined,
+  login: string
+): Promise<Sponsor[]> {
   // トークンを決定（gh CLI を優先）
   let authToken = token;
   if (!authToken) {
@@ -86,42 +137,31 @@ export async function fetchSponsors(
   }
 
   try {
-    while (hasNextPage) {
-      const response = await graphql<GitHubSponsorshipResponse>(SPONSORS_QUERY, {
-        headers: {
-          authorization: `token ${authToken}`,
-        },
-        login,
-        cursor,
-      });
+    // Fetch active sponsors
+    const activeSponsors = await fetchSponsorsWithFlag(authToken, login, true);
+    const activeLogins = new Set(activeSponsors.map(s => s.login));
 
-      const sponsorships = response.user.sponsorshipsAsMaintainer;
-      const pageInfo = sponsorships.pageInfo;
-
-      // スポンサーシップを処理
-      for (const node of sponsorships.nodes) {
-        // ティア情報がない場合はスキップ
-        if (!node.tier) {
-          continue;
-        }
-
-        sponsors.push({
-          login: node.sponsorEntity.login,
-          name: node.sponsorEntity.name || node.sponsorEntity.login,
-          avatarUrl: node.sponsorEntity.avatarUrl,
-          profile: node.sponsorEntity.url,
-          monthlyDollars: node.tier.monthlyPriceInCents / 100,
-          tier: {
-            title: node.tier.name,
-            monthlyPriceInDollars: node.tier.monthlyPriceInCents / 100,
-          },
-        });
-      }
-
-      // ページネーション処理
-      hasNextPage = pageInfo.hasNextPage;
-      cursor = pageInfo.endCursor;
+    // Mark as active
+    for (const sponsor of activeSponsors) {
+      sponsor.isActive = true;
     }
+
+    // Fetch all sponsors (including past)
+    const allSponsors = await fetchSponsorsWithFlag(authToken, login, false);
+
+    // Find past sponsors (in all but not in active)
+    const pastSponsors: Sponsor[] = [];
+    for (const sponsor of allSponsors) {
+      if (!activeLogins.has(sponsor.login)) {
+        sponsor.isActive = false;
+        pastSponsors.push(sponsor);
+      }
+    }
+
+    // Combine active and past sponsors
+    const sponsors = [...activeSponsors, ...pastSponsors];
+
+    console.log(`   Active: ${activeSponsors.length}, Past: ${pastSponsors.length}`);
 
     return sponsors;
   } catch (error) {
@@ -131,7 +171,10 @@ export async function fetchSponsors(
 }
 
 /**
- * スポンサーをティアで分類
+ * Classify sponsors by tier
+ * Priority: 1. Past sponsors (inactive) go to "Past Sponsors" tier
+ *           2. Tier name matching
+ *           3. Amount-based
  */
 export function classifySponsors(
   sponsors: Sponsor[],
@@ -139,34 +182,66 @@ export function classifySponsors(
 ): Map<string, Sponsor[]> {
   const classified = new Map<string, Sponsor[]>();
 
-  // ティアを初期化
+  // Initialize tiers
   for (const tier of tiers) {
     classified.set(tier.title, []);
   }
 
-  // スポンサーを分類
+  // Find Past Sponsors tier
+  const pastSponsorsTier = tiers.find(t => t.title.toLowerCase().includes('past'));
+
+  // Classify sponsors
   for (const sponsor of sponsors) {
     let placed = false;
 
-    // ティアを昇順で確認
-    for (let i = tiers.length - 1; i >= 0; i--) {
-      const tier = tiers[i];
-      if (sponsor.monthlyDollars >= tier.monthlyDollars) {
-        const tierSponsors = classified.get(tier.title);
-        if (tierSponsors) {
-          tierSponsors.push(sponsor);
-        }
+    // 0. Inactive sponsors go to "Past Sponsors" tier
+    if (!sponsor.isActive && pastSponsorsTier) {
+      const pastSponsors = classified.get(pastSponsorsTier.title);
+      if (pastSponsors) {
+        pastSponsors.push(sponsor);
         placed = true;
-        break;
       }
     }
 
-    // どのティアにも該当しない場合は最初のティアに
+    // 1. First try to match by tier name (only for active sponsors)
+    if (!placed && sponsor.tier?.title) {
+      const matchingTier = tiers.find(
+        (t) => t.title.toLowerCase() === sponsor.tier!.title.toLowerCase()
+      );
+      if (matchingTier) {
+        const tierSponsors = classified.get(matchingTier.title);
+        if (tierSponsors) {
+          tierSponsors.push(sponsor);
+          placed = true;
+        }
+      }
+    }
+
+    // 2. If name matching fails, classify by amount
+    if (!placed) {
+      // Filter out Past Sponsors tier for amount-based matching
+      const activeTiers = tiers.filter(t => !t.title.toLowerCase().includes('past'));
+      for (let i = activeTiers.length - 1; i >= 0; i--) {
+        const tier = activeTiers[i];
+        if (sponsor.monthlyDollars >= tier.monthlyDollars) {
+          const tierSponsors = classified.get(tier.title);
+          if (tierSponsors) {
+            tierSponsors.push(sponsor);
+          }
+          placed = true;
+          break;
+        }
+      }
+    }
+
+    // If no tier matches, place in the first non-past tier
     if (!placed && tiers.length > 0) {
-      const firstTier = tiers[0];
-      const tierSponsors = classified.get(firstTier.title);
-      if (tierSponsors) {
-        tierSponsors.push(sponsor);
+      const firstActiveTier = tiers.find(t => !t.title.toLowerCase().includes('past'));
+      if (firstActiveTier) {
+        const tierSponsors = classified.get(firstActiveTier.title);
+        if (tierSponsors) {
+          tierSponsors.push(sponsor);
+        }
       }
     }
   }

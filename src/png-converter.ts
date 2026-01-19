@@ -10,10 +10,12 @@ import path from 'path';
  * Convert SVG to PNG using Playwright with HTML wrapper
  * @param svgBuffer SVG buffer
  * @param outputPath Output file path
+ * @param transparent Whether to use transparent background
  */
 export async function convertToPng(
   svgBuffer: Buffer,
-  outputPath: string
+  outputPath: string,
+  transparent: boolean = false
 ): Promise<void> {
   let browser;
   let tempHtmlPath: string | null = null;
@@ -23,13 +25,15 @@ export async function convertToPng(
 
     // Create temporary HTML file
     const svgString = svgBuffer.toString('utf-8');
+    const backgroundColor = transparent ? 'transparent' : '#0A0A0A';
+
     const htmlContent = `<!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
   <style>
     * { margin: 0; padding: 0; }
-    body { background: white; }
+    body { background: ${backgroundColor}; }
     svg { display: block; }
   </style>
 </head>
@@ -65,6 +69,15 @@ ${svgString}
       };
     });
 
+    // Set viewport to match SVG dimensions
+    await page.setViewportSize({
+      width: dimensions.width,
+      height: dimensions.height,
+    });
+
+    // Wait for rerender after viewport change
+    await page.waitForTimeout(500);
+
     // Take screenshot
     await page.screenshot({
       path: outputPath,
@@ -74,9 +87,9 @@ ${svgString}
         width: dimensions.width,
         height: dimensions.height,
       },
+      omitBackground: transparent,
     });
 
-    console.log(`✓ PNG generated: ${outputPath}`);
   } catch (error) {
     console.error(`✗ Failed to convert PNG: ${outputPath}`, error);
     throw error;
