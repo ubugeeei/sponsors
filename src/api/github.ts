@@ -1,12 +1,11 @@
 /**
- * GitHub GraphQL API クライアント
- * スポンサーシップデータの取得
- * GitHub CLI (gh) または PAT を使用
+ * GitHub GraphQL API client for fetching sponsorship data
+ * Supports GitHub CLI (gh) or PAT authentication
  */
 
-import { graphql } from '@octokit/graphql';
-import type { Sponsor, GitHubSponsorship, GitHubSponsorshipResponse } from '../types';
-import { execSync } from 'child_process';
+import { graphql } from "@octokit/graphql";
+import type { Sponsor, GitHubSponsorshipResponse } from "../types";
+import { execSync } from "child_process";
 
 const SPONSORS_QUERY = `
   query($login: String!, $cursor: String, $activeOnly: Boolean!) {
@@ -44,12 +43,11 @@ const SPONSORS_QUERY = `
 `;
 
 /**
- * GitHub CLI から認証トークンを取得
- * (gh がインストール済みで SSH で認証済みの場合)
+ * Get auth token from GitHub CLI (if installed and authenticated)
  */
 function getGhToken(): string | null {
   try {
-    const token = execSync('gh auth token', { encoding: 'utf-8' }).trim();
+    const token = execSync("gh auth token", { encoding: "utf-8" }).trim();
     return token || null;
   } catch {
     return null;
@@ -62,7 +60,7 @@ function getGhToken(): string | null {
 async function fetchSponsorsWithFlag(
   authToken: string,
   login: string,
-  activeOnly: boolean
+  activeOnly: boolean,
 ): Promise<Sponsor[]> {
   const sponsors: Sponsor[] = [];
   let cursor: string | null = null;
@@ -79,14 +77,9 @@ async function fetchSponsorsWithFlag(
     });
 
     const sponsorships = response.user.sponsorshipsAsMaintainer;
-    const pageInfo = sponsorships.pageInfo;
 
-    // スポンサーシップを処理
     for (const node of sponsorships.nodes) {
-      // ティア情報がない場合はスキップ
-      if (!node.tier) {
-        continue;
-      }
+      if (!node.tier) continue;
 
       sponsors.push({
         login: node.sponsorEntity.login,
@@ -94,7 +87,7 @@ async function fetchSponsorsWithFlag(
         avatarUrl: node.sponsorEntity.avatarUrl,
         profile: node.sponsorEntity.url,
         monthlyDollars: node.tier.monthlyPriceInCents / 100,
-        isActive: !activeOnly ? true : true, // Will be set correctly later
+        isActive: true,
         tier: {
           title: node.tier.name,
           monthlyPriceInDollars: node.tier.monthlyPriceInCents / 100,
@@ -102,54 +95,43 @@ async function fetchSponsorsWithFlag(
       });
     }
 
-    // ページネーション処理
-    hasNextPage = pageInfo.hasNextPage;
-    cursor = pageInfo.endCursor;
+    hasNextPage = sponsorships.pageInfo.hasNextPage;
+    cursor = sponsorships.pageInfo.endCursor;
   }
 
   return sponsors;
 }
 
 /**
- * GitHub Sponsors API からスポンサーデータを取得
+ * Fetch sponsor data from GitHub Sponsors API
  * Uses two queries to determine active vs past sponsors
  */
-export async function fetchSponsors(
-  token: string | undefined,
-  login: string
-): Promise<Sponsor[]> {
-  // トークンを決定（gh CLI を優先）
+export async function fetchSponsors(token: string | undefined, login: string): Promise<Sponsor[]> {
+  // Resolve auth token (prefer gh CLI)
   let authToken = token;
   if (!authToken) {
     const ghToken = getGhToken();
     if (ghToken) {
-      console.log('ℹ️  Using GitHub CLI authentication (SSH)');
+      console.log("ℹ️  Using GitHub CLI authentication (SSH)");
       authToken = ghToken;
     }
   }
 
   if (!authToken) {
     throw new Error(
-      'GitHub token is required. Either:\n' +
-      '1. Set GITHUB_TOKEN or SPONSORKIT_GITHUB_TOKEN environment variable\n' +
-      '2. Install GitHub CLI (gh) and authenticate with: gh auth login'
+      "GitHub token is required. Either:\n" +
+        "1. Set GITHUB_TOKEN or SPONSORKIT_GITHUB_TOKEN environment variable\n" +
+        "2. Install GitHub CLI (gh) and authenticate with: gh auth login",
     );
   }
 
   try {
-    // Fetch active sponsors
     const activeSponsors = await fetchSponsorsWithFlag(authToken, login, true);
-    const activeLogins = new Set(activeSponsors.map(s => s.login));
+    const activeLogins = new Set(activeSponsors.map((s) => s.login));
 
-    // Mark as active
-    for (const sponsor of activeSponsors) {
-      sponsor.isActive = true;
-    }
-
-    // Fetch all sponsors (including past)
     const allSponsors = await fetchSponsorsWithFlag(authToken, login, false);
 
-    // Find past sponsors (in all but not in active)
+    // Past sponsors = in all but not in active
     const pastSponsors: Sponsor[] = [];
     for (const sponsor of allSponsors) {
       if (!activeLogins.has(sponsor.login)) {
@@ -158,90 +140,71 @@ export async function fetchSponsors(
       }
     }
 
-    // Combine active and past sponsors
     const sponsors = [...activeSponsors, ...pastSponsors];
-
     console.log(`   Active: ${activeSponsors.length}, Past: ${pastSponsors.length}`);
 
     return sponsors;
   } catch (error) {
-    console.error('Failed to fetch sponsors:', error);
+    console.error("Failed to fetch sponsors:", error);
     throw error;
   }
 }
 
 /**
  * Classify sponsors by tier
- * Priority: 1. Past sponsors (inactive) go to "Past Sponsors" tier
+ * Priority: 1. Past sponsors (inactive) → "Past Sponsors" tier
  *           2. Tier name matching
- *           3. Amount-based
+ *           3. Amount-based fallback
  */
 export function classifySponsors(
   sponsors: Sponsor[],
-  tiers: Array<{ title: string; monthlyDollars: number }>
+  tiers: Array<{ title: string; monthlyDollars: number }>,
 ): Map<string, Sponsor[]> {
   const classified = new Map<string, Sponsor[]>();
 
-  // Initialize tiers
   for (const tier of tiers) {
     classified.set(tier.title, []);
   }
 
-  // Find Past Sponsors tier
-  const pastSponsorsTier = tiers.find(t => t.title.toLowerCase().includes('past'));
+  const pastSponsorsTier = tiers.find((t) => t.title.toLowerCase().includes("past"));
 
-  // Classify sponsors
   for (const sponsor of sponsors) {
     let placed = false;
 
-    // 0. Inactive sponsors go to "Past Sponsors" tier
+    // Inactive sponsors go to "Past Sponsors" tier
     if (!sponsor.isActive && pastSponsorsTier) {
-      const pastSponsors = classified.get(pastSponsorsTier.title);
-      if (pastSponsors) {
-        pastSponsors.push(sponsor);
+      classified.get(pastSponsorsTier.title)?.push(sponsor);
+      placed = true;
+    }
+
+    // Try to match by tier name (active sponsors only)
+    if (!placed && sponsor.tier?.title) {
+      const matchingTier = tiers.find(
+        (t) => t.title.toLowerCase() === sponsor.tier!.title.toLowerCase(),
+      );
+      if (matchingTier) {
+        classified.get(matchingTier.title)?.push(sponsor);
         placed = true;
       }
     }
 
-    // 1. First try to match by tier name (only for active sponsors)
-    if (!placed && sponsor.tier?.title) {
-      const matchingTier = tiers.find(
-        (t) => t.title.toLowerCase() === sponsor.tier!.title.toLowerCase()
-      );
-      if (matchingTier) {
-        const tierSponsors = classified.get(matchingTier.title);
-        if (tierSponsors) {
-          tierSponsors.push(sponsor);
-          placed = true;
-        }
-      }
-    }
-
-    // 2. If name matching fails, classify by amount
+    // Fallback: classify by amount
     if (!placed) {
-      // Filter out Past Sponsors tier for amount-based matching
-      const activeTiers = tiers.filter(t => !t.title.toLowerCase().includes('past'));
+      const activeTiers = tiers.filter((t) => !t.title.toLowerCase().includes("past"));
       for (let i = activeTiers.length - 1; i >= 0; i--) {
-        const tier = activeTiers[i];
-        if (sponsor.monthlyDollars >= tier.monthlyDollars) {
-          const tierSponsors = classified.get(tier.title);
-          if (tierSponsors) {
-            tierSponsors.push(sponsor);
-          }
+        if (sponsor.monthlyDollars >= activeTiers[i].monthlyDollars) {
+          classified.get(activeTiers[i].title)?.push(sponsor);
           placed = true;
           break;
         }
       }
     }
 
-    // If no tier matches, place in the first non-past tier
-    if (!placed && tiers.length > 0) {
-      const firstActiveTier = tiers.find(t => !t.title.toLowerCase().includes('past'));
+    // Last resort: place in first non-past tier
+    if (!placed) {
+      const firstActiveTier = tiers.find((t) => !t.title.toLowerCase().includes("past"));
       if (firstActiveTier) {
-        const tierSponsors = classified.get(firstActiveTier.title);
-        if (tierSponsors) {
-          tierSponsors.push(sponsor);
-        }
+        classified.get(firstActiveTier.title)?.push(sponsor);
       }
     }
   }

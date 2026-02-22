@@ -47,14 +47,14 @@ export interface SponsorData {
 /** GitHub GraphQL response type */
 export interface GitHubSponsorship {
   createdAt?: string;
-  privacyLevel?: 'PUBLIC' | 'PRIVATE';
+  privacyLevel?: "PUBLIC" | "PRIVATE";
   isActive: boolean;
   tier: {
     name: string;
     monthlyPriceInCents: number;
   };
   sponsorEntity: {
-    __typename: 'User' | 'Organization';
+    __typename: "User" | "Organization";
     login: string;
     name: string;
     avatarUrl: string;

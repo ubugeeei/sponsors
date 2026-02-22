@@ -1,55 +1,64 @@
 /**
- * スポンサー表示ジェネレーター
- * メインエントリーポイント
+ * Sponsor display generator
+ * Main entry point
  */
 
-import { writeFileSync } from 'fs';
-import { fetchSponsors, classifySponsors } from './api/github';
-import { elegantComposer } from './composer/elegant-composer';
-import { convertToPng } from './png-converter';
-import { config } from '../config';
+import { writeFileSync } from "fs";
+import { fetchSponsors, classifySponsors } from "./api/github";
+import { elegantComposer, type ComposerOptions } from "./composer/elegant-composer";
+import { convertToPng } from "./png-converter";
+import { config } from "../config";
+
+interface OutputVariant {
+  name: string;
+  options: ComposerOptions;
+  transparent: boolean;
+}
+
+const OUTPUT_VARIANTS: OutputVariant[] = [
+  { name: "sponsors", options: {}, transparent: false },
+  { name: "sponsors-transparent", options: { transparent: true }, transparent: true },
+  {
+    name: "sponsors-transparent-dark",
+    options: { transparent: true, darkText: true },
+    transparent: true,
+  },
+];
 
 /**
  * Download image and convert to base64 with retry logic
  */
-async function imageUrlToBase64(url: string, retries: number = 3): Promise<string> {
+async function imageUrlToBase64(url: string, retries = 3): Promise<string> {
   let lastError: Error | null = null;
 
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      // Create abort controller for timeout
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout per attempt
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
 
       const response = await fetch(url, {
         signal: controller.signal,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; sponsorkit)',
-        }
+        headers: { "User-Agent": "Mozilla/5.0 (compatible; sponsorkit)" },
       });
 
       clearTimeout(timeoutId);
-
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
       const buffer = await response.arrayBuffer();
-      const base64 = Buffer.from(buffer).toString('base64');
-
-      // Determine MIME type from URL or use default
-      const mimeType = url.includes('.png') ? 'image/png' : 'image/jpeg';
+      const base64 = Buffer.from(buffer).toString("base64");
+      const mimeType = url.includes(".png") ? "image/png" : "image/jpeg";
 
       return `data:${mimeType};base64,${base64}`;
     } catch (error) {
       lastError = error as Error;
       if (attempt < retries) {
-        // Wait before retrying
-        await new Promise(r => setTimeout(r, 500 * attempt));
+        await new Promise((r) => setTimeout(r, 500 * attempt));
       }
     }
   }
 
   console.warn(`Failed to load image after ${retries} attempts: ${url}`, lastError?.message);
-  return ''; // Return empty string on error
+  return "";
 }
 
 /**
@@ -74,76 +83,8 @@ async function embedAvatarImages(sponsors: any[]): Promise<void> {
   console.log(`   ✓ Avatar images: ${successCount} loaded, ${failCount} failed`);
 }
 
-async function main() {
-  try {
-    // 設定を検証
-    if (!config.githubLogin) {
-      throw new Error(
-        'GitHub login is required. Set GITHUB_LOGIN or SPONSORKIT_GITHUB_LOGIN environment variable.'
-      );
-    }
-
-    console.log('');
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('  SPONSOR KIT - Monochrome Edition');
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log(`  GitHub: ${config.githubLogin}`);
-    console.log('');
-
-    // Step 1: GitHub API からスポンサーデータを取得
-    console.log('→ Fetching sponsors from GitHub...');
-    const sponsors = await fetchSponsors(config.githubToken, config.githubLogin);
-    console.log(`  ✓ Found ${sponsors.length} sponsors`);
-
-    // Step 1.5: アバター画像を base64 に変換
-    console.log('→ Embedding avatar images...');
-    await embedAvatarImages(sponsors);
-
-    // Step 2: スポンサーをティアごとに分類
-    console.log('→ Classifying sponsors by tier...');
-    const classifiedSponsors = classifySponsors(sponsors, config.tiers);
-
-    // デバッグ: ティアごとのスポンサー数を表示
-    for (const [tierTitle, tierSponsors] of classifiedSponsors) {
-      const count = tierSponsors.length;
-      if (count > 0) {
-        console.log(`  • ${tierTitle}: ${count}`);
-      }
-    }
-
-    // ティア順に並べたスポンサー配列を作成
-    const tierSponsors = config.tiers.map((tier) => classifiedSponsors.get(tier.title) || []);
-
-    // Step 3: SVG を生成（通常版）
-    console.log('→ Generating SVG (with background)...');
-    const svgContent = elegantComposer(tierSponsors, config.tiers, config.width, { transparent: false });
-    const svgBuffer = Buffer.from(svgContent, 'utf-8');
-
-    // Step 3.5: SVG を生成（透過版）
-    console.log('→ Generating SVG (transparent)...');
-    const svgTransparentContent = elegantComposer(tierSponsors, config.tiers, config.width, { transparent: true });
-
-    // Step 3.6: SVG を生成（透過版・ダークテキスト）
-    console.log('→ Generating SVG (transparent, dark text)...');
-    const svgTransparentDarkContent = elegantComposer(tierSponsors, config.tiers, config.width, { transparent: true, darkText: true });
-
-    // Step 4: SVG をファイルに保存
-    const svgPath = `${config.outputDir}/sponsors.svg`;
-    writeFileSync(svgPath, svgContent, 'utf-8');
-    console.log(`  ✓ ${svgPath}`);
-
-    // 透過版 SVG を保存
-    const svgTransparentPath = `${config.outputDir}/sponsors-transparent.svg`;
-    writeFileSync(svgTransparentPath, svgTransparentContent, 'utf-8');
-    console.log(`  ✓ ${svgTransparentPath}`);
-
-    // 透過版（ダークテキスト）SVG を保存
-    const svgTransparentDarkPath = `${config.outputDir}/sponsors-transparent-dark.svg`;
-    writeFileSync(svgTransparentDarkPath, svgTransparentDarkContent, 'utf-8');
-    console.log(`  ✓ ${svgTransparentDarkPath}`);
-
-    // Step 4.5: HTML ラッパーも出力（iframe 用）
-    const htmlContent = `<!DOCTYPE html>
+function generateHtmlWrapper(svgContent: string): string {
+  return `<!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
@@ -170,51 +111,81 @@ async function main() {
 ${svgContent}
 </body>
 </html>`;
+}
+
+async function main() {
+  try {
+    if (!config.githubLogin) {
+      throw new Error(
+        "GitHub login is required. Set GITHUB_LOGIN or SPONSORKIT_GITHUB_LOGIN environment variable.",
+      );
+    }
+
+    console.log("");
+    console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    console.log("  SPONSOR KIT - Monochrome Edition");
+    console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    console.log(`  GitHub: ${config.githubLogin}`);
+    console.log("");
+
+    // Fetch sponsors from GitHub API
+    console.log("→ Fetching sponsors from GitHub...");
+    const sponsors = await fetchSponsors(config.githubToken, config.githubLogin);
+    console.log(`  ✓ Found ${sponsors.length} sponsors`);
+
+    // Embed avatar images as base64
+    console.log("→ Embedding avatar images...");
+    await embedAvatarImages(sponsors);
+
+    // Classify sponsors by tier
+    console.log("→ Classifying sponsors by tier...");
+    const classifiedSponsors = classifySponsors(sponsors, config.tiers);
+
+    for (const [tierTitle, tierSponsors] of classifiedSponsors) {
+      if (tierSponsors.length > 0) {
+        console.log(`  • ${tierTitle}: ${tierSponsors.length}`);
+      }
+    }
+
+    // Build ordered sponsor arrays by tier
+    const tierSponsors = config.tiers.map((tier) => classifiedSponsors.get(tier.title) || []);
+
+    // Generate SVGs for all variants
+    console.log("→ Generating SVGs...");
+    const svgResults = OUTPUT_VARIANTS.map((variant) => {
+      const content = elegantComposer(tierSponsors, config.tiers, config.width, variant.options);
+      const svgPath = `${config.outputDir}/${variant.name}.svg`;
+      writeFileSync(svgPath, content, "utf-8");
+      console.log(`  ✓ ${svgPath}`);
+      return { ...variant, content };
+    });
+
+    // Generate HTML wrapper for iframe embedding
     const htmlPath = `${config.outputDir}/sponsors.html`;
-    writeFileSync(htmlPath, htmlContent, 'utf-8');
+    writeFileSync(htmlPath, generateHtmlWrapper(svgResults[0].content), "utf-8");
     console.log(`  ✓ ${htmlPath}`);
 
-    // Step 5: PNG に変換（通常版）
-    console.log('→ Converting to PNG (with background)...');
-    const pngPath = `${config.outputDir}/sponsors.png`;
-    try {
-      await convertToPng(svgBuffer, pngPath);
-      console.log(`  ✓ ${pngPath}`);
-    } catch (pngError) {
-      console.warn('  ⚠ PNG generation failed');
+    // Convert all variants to PNG
+    for (const { name, content, transparent } of svgResults) {
+      console.log(`→ Converting to PNG: ${name}...`);
+      const pngPath = `${config.outputDir}/${name}.png`;
+      try {
+        await convertToPng(Buffer.from(content, "utf-8"), pngPath, transparent);
+        console.log(`  ✓ ${pngPath}`);
+      } catch {
+        console.warn(`  ⚠ PNG generation failed: ${name}`);
+      }
     }
 
-    // Step 5.5: PNG に変換（透過版）
-    console.log('→ Converting to PNG (transparent)...');
-    const pngTransparentPath = `${config.outputDir}/sponsors-transparent.png`;
-    try {
-      const svgTransparentBuffer = Buffer.from(svgTransparentContent, 'utf-8');
-      await convertToPng(svgTransparentBuffer, pngTransparentPath, true);
-      console.log(`  ✓ ${pngTransparentPath}`);
-    } catch (pngError) {
-      console.warn('  ⚠ Transparent PNG generation failed');
-    }
-
-    // Step 5.6: PNG に変換（透過版・ダークテキスト）
-    console.log('→ Converting to PNG (transparent, dark text)...');
-    const pngTransparentDarkPath = `${config.outputDir}/sponsors-transparent-dark.png`;
-    try {
-      const svgTransparentDarkBuffer = Buffer.from(svgTransparentDarkContent, 'utf-8');
-      await convertToPng(svgTransparentDarkBuffer, pngTransparentDarkPath, true);
-      console.log(`  ✓ ${pngTransparentDarkPath}`);
-    } catch (pngError) {
-      console.warn('  ⚠ Transparent dark text PNG generation failed');
-    }
-
-    console.log('');
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('  ✓ Generation completed');
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('');
+    console.log("");
+    console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    console.log("  ✓ Generation completed");
+    console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    console.log("");
   } catch (error) {
-    console.error('✗ Error:', error);
+    console.error("✗ Error:", error);
     process.exit(1);
   }
 }
 
-main();
+void main();
