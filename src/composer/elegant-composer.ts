@@ -9,6 +9,7 @@ import { escapeXml } from './svg-utils';
 
 export interface ComposerOptions {
   transparent?: boolean;
+  darkText?: boolean;
 }
 
 export function elegantComposer(
@@ -17,7 +18,7 @@ export function elegantComposer(
   width: number = 800,
   options: ComposerOptions = {}
 ): string {
-  const { transparent = false } = options;
+  const { transparent = false, darkText = false } = options;
 
   let tierSponsors: Array<Array<Sponsor>>;
   if (sponsorsOrTierSponsors.length > 0 && Array.isArray(sponsorsOrTierSponsors[0])) {
@@ -77,6 +78,8 @@ export function elegantComposer(
     let avatarSize: number;
     if (isPast) {
       avatarSize = 36;
+    } else if ((tier.monthlyDollars || 0) >= 256) {
+      avatarSize = 120;
     } else if (tierIdx === 0) {
       avatarSize = 80;
     } else if (tierIdx === 1) {
@@ -135,14 +138,18 @@ export function elegantComposer(
   svg += `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}">\n`;
 
   // Embedded font styles
+  const colors = darkText
+    ? { titleLarge: '#212121', titleMedium: 'rgba(33,33,33,0.85)', titleSmall: 'rgba(33,33,33,0.6)', header: 'rgba(33,33,33,0.4)', line: 'rgba(33,33,33,0.08)', titleLine: 'rgba(33,33,33,0.15)', ring: 'rgba(33,33,33,0.1)', fallbackAvatar: '#e0e0e0' }
+    : { titleLarge: '#fff', titleMedium: 'rgba(255,255,255,0.85)', titleSmall: 'rgba(255,255,255,0.6)', header: 'rgba(255,255,255,0.4)', line: 'rgba(255,255,255,0.08)', titleLine: 'rgba(255,255,255,0.15)', ring: 'rgba(255,255,255,0.1)', fallbackAvatar: '#1a1a1a' };
+
   svg += `<style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&amp;display=swap');
 text { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif; }
 .tier-title { font-weight: 300; letter-spacing: 0.25em; text-transform: uppercase; }
-.tier-title-large { font-size: 24px; fill: #fff; }
-.tier-title-medium { font-size: 18px; fill: rgba(255,255,255,0.85); }
-.tier-title-small { font-size: 14px; fill: rgba(255,255,255,0.6); }
-.header-text { font-weight: 500; font-size: 11px; letter-spacing: 0.3em; text-transform: uppercase; fill: rgba(255,255,255,0.4); }
+.tier-title-large { font-size: 24px; fill: ${colors.titleLarge}; }
+.tier-title-medium { font-size: 18px; fill: ${colors.titleMedium}; }
+.tier-title-small { font-size: 14px; fill: ${colors.titleSmall}; }
+.header-text { font-weight: 500; font-size: 11px; letter-spacing: 0.3em; text-transform: uppercase; fill: ${colors.header}; }
 a:hover g { opacity: 0.8; }
 </style>\n`;
 
@@ -172,7 +179,7 @@ a:hover g { opacity: 0.8; }
   }
 
   // Subtle top accent line
-  svg += `<line x1="${padding}" y1="${padding - 20}" x2="${width - padding}" y2="${padding - 20}" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>\n`;
+  svg += `<line x1="${padding}" y1="${padding - 20}" x2="${width - padding}" y2="${padding - 20}" stroke="${colors.line}" stroke-width="1"/>\n`;
 
   // Header
   svg += `<text x="${centerX}" y="${padding + 24}" text-anchor="middle" class="header-text">Sponsors</text>\n`;
@@ -200,7 +207,7 @@ a:hover g { opacity: 0.8; }
     // Decorative line under title (only for active tiers)
     if (!isPast && sectionIdx < 3) {
       const lineWidth = Math.min(120, tier.title.length * 12);
-      svg += `<line x1="${centerX - lineWidth/2}" y1="${titleY + 12}" x2="${centerX + lineWidth/2}" y2="${titleY + 12}" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>\n`;
+      svg += `<line x1="${centerX - lineWidth/2}" y1="${titleY + 12}" x2="${centerX + lineWidth/2}" y2="${titleY + 12}" stroke="${colors.titleLine}" stroke-width="1"/>\n`;
     }
 
     // Avatars
@@ -215,13 +222,13 @@ a:hover g { opacity: 0.8; }
 
       // Subtle ring around avatar
       if (!isPast) {
-        svg += `<circle cx="${size/2}" cy="${size/2}" r="${size/2 + 2}" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>\n`;
+        svg += `<circle cx="${size/2}" cy="${size/2}" r="${size/2 + 2}" fill="none" stroke="${colors.ring}" stroke-width="1"/>\n`;
       }
 
       if (avatarUrl) {
         svg += `<image x="0" y="0" width="${size}" height="${size}" href="${escapeXml(avatarUrl)}" clip-path="url(#clip-${id})" preserveAspectRatio="xMidYMid slice"/>\n`;
       } else {
-        svg += `<circle cx="${size/2}" cy="${size/2}" r="${size/2}" fill="#1a1a1a"/>\n`;
+        svg += `<circle cx="${size/2}" cy="${size/2}" r="${size/2}" fill="${colors.fallbackAvatar}"/>\n`;
       }
 
       svg += `</g>\n</a>\n`;
@@ -229,7 +236,7 @@ a:hover g { opacity: 0.8; }
   });
 
   // Subtle bottom accent
-  svg += `<line x1="${padding}" y1="${height - padding + 20}" x2="${width - padding}" y2="${height - padding + 20}" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>\n`;
+  svg += `<line x1="${padding}" y1="${height - padding + 20}" x2="${width - padding}" y2="${height - padding + 20}" stroke="${colors.line}" stroke-width="1"/>\n`;
 
   svg += '</svg>';
   return svg;

@@ -123,6 +123,10 @@ async function main() {
     console.log('→ Generating SVG (transparent)...');
     const svgTransparentContent = elegantComposer(tierSponsors, config.tiers, config.width, { transparent: true });
 
+    // Step 3.6: SVG を生成（透過版・ダークテキスト）
+    console.log('→ Generating SVG (transparent, dark text)...');
+    const svgTransparentDarkContent = elegantComposer(tierSponsors, config.tiers, config.width, { transparent: true, darkText: true });
+
     // Step 4: SVG をファイルに保存
     const svgPath = `${config.outputDir}/sponsors.svg`;
     writeFileSync(svgPath, svgContent, 'utf-8');
@@ -132,6 +136,11 @@ async function main() {
     const svgTransparentPath = `${config.outputDir}/sponsors-transparent.svg`;
     writeFileSync(svgTransparentPath, svgTransparentContent, 'utf-8');
     console.log(`  ✓ ${svgTransparentPath}`);
+
+    // 透過版（ダークテキスト）SVG を保存
+    const svgTransparentDarkPath = `${config.outputDir}/sponsors-transparent-dark.svg`;
+    writeFileSync(svgTransparentDarkPath, svgTransparentDarkContent, 'utf-8');
+    console.log(`  ✓ ${svgTransparentDarkPath}`);
 
     // Step 4.5: HTML ラッパーも出力（iframe 用）
     const htmlContent = `<!DOCTYPE html>
@@ -184,6 +193,17 @@ ${svgContent}
       console.log(`  ✓ ${pngTransparentPath}`);
     } catch (pngError) {
       console.warn('  ⚠ Transparent PNG generation failed');
+    }
+
+    // Step 5.6: PNG に変換（透過版・ダークテキスト）
+    console.log('→ Converting to PNG (transparent, dark text)...');
+    const pngTransparentDarkPath = `${config.outputDir}/sponsors-transparent-dark.png`;
+    try {
+      const svgTransparentDarkBuffer = Buffer.from(svgTransparentDarkContent, 'utf-8');
+      await convertToPng(svgTransparentDarkBuffer, pngTransparentDarkPath, true);
+      console.log(`  ✓ ${pngTransparentDarkPath}`);
+    } catch (pngError) {
+      console.warn('  ⚠ Transparent dark text PNG generation failed');
     }
 
     console.log('');

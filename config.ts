@@ -33,6 +33,10 @@ export const config = {
       title: 'Slightly Fancier Hair Salon Sponsors',
       monthlyDollars: 64,
     },
+    {
+      title: 'Rent Relief Sponsors',
+      monthlyDollars: 256,
+    },
   ],
 
   // 環境変数
