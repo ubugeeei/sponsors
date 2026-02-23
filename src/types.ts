@@ -52,7 +52,7 @@ export interface GitHubSponsorship {
   tier: {
     name: string;
     monthlyPriceInCents: number;
-  };
+  } | null;
   sponsorEntity: {
     __typename: "User" | "Organization";
     login: string;

@@ -139,7 +139,7 @@ async function main() {
 
     // Classify sponsors by tier
     console.log("→ Classifying sponsors by tier...");
-    const classifiedSponsors = classifySponsors(sponsors, config.tiers);
+    const classifiedSponsors = classifySponsors(sponsors, config.tiers, config.tierOverrides);
 
     for (const [tierTitle, tierSponsors] of classifiedSponsors) {
       if (tierSponsors.length > 0) {

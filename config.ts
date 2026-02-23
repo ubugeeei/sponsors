@@ -37,6 +37,10 @@ export const config = {
     },
   ],
 
+  tierOverrides: {
+    yyx990803: "Rent Relief Sponsors",
+  } as Record<string, string>,
+
   githubToken: process.env.GITHUB_TOKEN,
   githubLogin: process.env.GITHUB_LOGIN,
 };

@@ -79,19 +79,19 @@ async function fetchSponsorsWithFlag(
     const sponsorships = response.user.sponsorshipsAsMaintainer;
 
     for (const node of sponsorships.nodes) {
-      if (!node.tier) continue;
-
       sponsors.push({
         login: node.sponsorEntity.login,
         name: node.sponsorEntity.name || node.sponsorEntity.login,
         avatarUrl: node.sponsorEntity.avatarUrl,
         profile: node.sponsorEntity.url,
-        monthlyDollars: node.tier.monthlyPriceInCents / 100,
+        monthlyDollars: node.tier ? node.tier.monthlyPriceInCents / 100 : 0,
         isActive: true,
-        tier: {
-          title: node.tier.name,
-          monthlyPriceInDollars: node.tier.monthlyPriceInCents / 100,
-        },
+        tier: node.tier
+          ? {
+              title: node.tier.name,
+              monthlyPriceInDollars: node.tier.monthlyPriceInCents / 100,
+            }
+          : undefined,
       });
     }
 
@@ -159,6 +159,7 @@ export async function fetchSponsors(token: string | undefined, login: string): P
 export function classifySponsors(
   sponsors: Sponsor[],
   tiers: Array<{ title: string; monthlyDollars: number }>,
+  tierOverrides?: Record<string, string>,
 ): Map<string, Sponsor[]> {
   const classified = new Map<string, Sponsor[]>();
 
@@ -171,8 +172,17 @@ export function classifySponsors(
   for (const sponsor of sponsors) {
     let placed = false;
 
+    // Apply tier override if configured
+    if (tierOverrides?.[sponsor.login]) {
+      const overrideTier = tierOverrides[sponsor.login];
+      if (classified.has(overrideTier)) {
+        classified.get(overrideTier)?.push(sponsor);
+        placed = true;
+      }
+    }
+
     // Inactive sponsors go to "Past Sponsors" tier
-    if (!sponsor.isActive && pastSponsorsTier) {
+    if (!placed && !sponsor.isActive && pastSponsorsTier) {
       classified.get(pastSponsorsTier.title)?.push(sponsor);
       placed = true;
     }
