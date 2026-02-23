@@ -85,6 +85,7 @@ export function elegantComposer(
   type Section = {
     tier: Tier;
     titleY: number;
+    showName: boolean;
     avatars: Array<{ x: number; y: number; size: number; sponsor: Sponsor }>;
   };
 
@@ -98,7 +99,8 @@ export function elegantComposer(
 
     const isPast = tier.title.toLowerCase().includes("past");
     const avatarSize = getAvatarSize(tier, tierIdx, isPast);
-    const nameHeight = isPast ? 0 : 16;
+    const showName = !isPast && (tier.monthlyDollars || 0) >= 8;
+    const nameHeight = showName ? 16 : 0;
     const cellHeight = avatarSize + nameHeight;
     const gap = isPast ? 12 : Math.max(16, avatarSize * 0.3);
     const maxPerRow = Math.max(1, Math.floor((width - padding * 2 + gap) / (avatarSize + gap)));
@@ -124,7 +126,7 @@ export function elegantComposer(
     }
 
     const contentHeight = rows * (cellHeight + gap) - gap;
-    sections.push({ tier, titleY, avatars });
+    sections.push({ tier, titleY, showName, avatars });
     currentY += contentHeight + (isPast ? 48 : 72);
   });
 
@@ -175,7 +177,7 @@ a:hover g { opacity: 0.8; }
 
   // Render sections
   sections.forEach((section, sectionIdx) => {
-    const { tier, avatars, titleY } = section;
+    const { tier, avatars, titleY, showName } = section;
     const isPast = tier.title.toLowerCase().includes("past");
 
     svg += `<text x="${centerX}" y="${titleY}" text-anchor="middle" class="${getTitleClass(sectionIdx, isPast)}">${escapeXml(tier.title)}</text>\n`;
@@ -206,7 +208,7 @@ a:hover g { opacity: 0.8; }
         svg += `<circle cx="${size / 2}" cy="${size / 2}" r="${size / 2}" fill="${colors.fallbackAvatar}"/>\n`;
       }
 
-      if (!isPast) {
+      if (showName) {
         const fontSize = size >= 80 ? 11 : 9;
         svg += `<text x="${size / 2}" y="${size + fontSize + 4}" text-anchor="middle" class="sponsor-name" font-size="${fontSize}px">${escapeXml(sponsor.name)}</text>\n`;
       }
