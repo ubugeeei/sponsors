@@ -130,7 +130,11 @@ async function main() {
 
     // Fetch sponsors from GitHub API
     console.log("→ Fetching sponsors from GitHub...");
-    const sponsors = await fetchSponsors(config.githubToken, config.githubLogin);
+    const sponsors = await fetchSponsors(
+      config.githubToken,
+      config.githubLogin,
+      config.amountOverrides,
+    );
     console.log(`  ✓ Found ${sponsors.length} sponsors`);
 
     // Embed avatar images as base64
@@ -139,7 +143,7 @@ async function main() {
 
     // Classify sponsors by tier
     console.log("→ Classifying sponsors by tier...");
-    const classifiedSponsors = classifySponsors(sponsors, config.tiers, config.tierOverrides);
+    const classifiedSponsors = classifySponsors(sponsors, config.tiers);
 
     for (const [tierTitle, tierSponsors] of classifiedSponsors) {
       if (tierSponsors.length > 0) {

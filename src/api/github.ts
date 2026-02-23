@@ -61,6 +61,7 @@ async function fetchSponsorsWithFlag(
   authToken: string,
   login: string,
   activeOnly: boolean,
+  amountOverrides?: Record<string, number>,
 ): Promise<Sponsor[]> {
   const sponsors: Sponsor[] = [];
   let cursor: string | null = null;
@@ -79,12 +80,17 @@ async function fetchSponsorsWithFlag(
     const sponsorships = response.user.sponsorshipsAsMaintainer;
 
     for (const node of sponsorships.nodes) {
+      const sponsorLogin = node.sponsorEntity.login;
+      const monthlyDollars = node.tier
+        ? node.tier.monthlyPriceInCents / 100
+        : (amountOverrides?.[sponsorLogin] ?? 0);
+
       sponsors.push({
-        login: node.sponsorEntity.login,
-        name: node.sponsorEntity.name || node.sponsorEntity.login,
+        login: sponsorLogin,
+        name: node.sponsorEntity.name || sponsorLogin,
         avatarUrl: node.sponsorEntity.avatarUrl,
         profile: node.sponsorEntity.url,
-        monthlyDollars: node.tier ? node.tier.monthlyPriceInCents / 100 : 0,
+        monthlyDollars,
         isActive: true,
         tier: node.tier
           ? {
@@ -106,7 +112,11 @@ async function fetchSponsorsWithFlag(
  * Fetch sponsor data from GitHub Sponsors API
  * Uses two queries to determine active vs past sponsors
  */
-export async function fetchSponsors(token: string | undefined, login: string): Promise<Sponsor[]> {
+export async function fetchSponsors(
+  token: string | undefined,
+  login: string,
+  amountOverrides?: Record<string, number>,
+): Promise<Sponsor[]> {
   // Resolve auth token (prefer gh CLI)
   let authToken = token;
   if (!authToken) {
@@ -126,10 +136,10 @@ export async function fetchSponsors(token: string | undefined, login: string): P
   }
 
   try {
-    const activeSponsors = await fetchSponsorsWithFlag(authToken, login, true);
+    const activeSponsors = await fetchSponsorsWithFlag(authToken, login, true, amountOverrides);
     const activeLogins = new Set(activeSponsors.map((s) => s.login));
 
-    const allSponsors = await fetchSponsorsWithFlag(authToken, login, false);
+    const allSponsors = await fetchSponsorsWithFlag(authToken, login, false, amountOverrides);
 
     // Past sponsors = in all but not in active
     const pastSponsors: Sponsor[] = [];
@@ -159,7 +169,6 @@ export async function fetchSponsors(token: string | undefined, login: string): P
 export function classifySponsors(
   sponsors: Sponsor[],
   tiers: Array<{ title: string; monthlyDollars: number }>,
-  tierOverrides?: Record<string, string>,
 ): Map<string, Sponsor[]> {
   const classified = new Map<string, Sponsor[]>();
 
@@ -172,17 +181,8 @@ export function classifySponsors(
   for (const sponsor of sponsors) {
     let placed = false;
 
-    // Apply tier override if configured
-    if (tierOverrides?.[sponsor.login]) {
-      const overrideTier = tierOverrides[sponsor.login];
-      if (classified.has(overrideTier)) {
-        classified.get(overrideTier)?.push(sponsor);
-        placed = true;
-      }
-    }
-
     // Inactive sponsors go to "Past Sponsors" tier
-    if (!placed && !sponsor.isActive && pastSponsorsTier) {
+    if (!sponsor.isActive && pastSponsorsTier) {
       classified.get(pastSponsorsTier.title)?.push(sponsor);
       placed = true;
     }

@@ -98,6 +98,8 @@ export function elegantComposer(
 
     const isPast = tier.title.toLowerCase().includes("past");
     const avatarSize = getAvatarSize(tier, tierIdx, isPast);
+    const nameHeight = isPast ? 0 : 16;
+    const cellHeight = avatarSize + nameHeight;
     const gap = isPast ? 12 : Math.max(16, avatarSize * 0.3);
     const maxPerRow = Math.max(1, Math.floor((width - padding * 2 + gap) / (avatarSize + gap)));
     const rows = Math.ceil(sponsors.length / maxPerRow);
@@ -115,13 +117,13 @@ export function elegantComposer(
 
       avatars.push({
         x: startX + col * (avatarSize + gap),
-        y: currentY + row * (avatarSize + gap),
+        y: currentY + row * (cellHeight + gap),
         size: avatarSize,
         sponsor: sponsors[i],
       });
     }
 
-    const contentHeight = rows * (avatarSize + gap) - gap;
+    const contentHeight = rows * (cellHeight + gap) - gap;
     sections.push({ tier, titleY, avatars });
     currentY += contentHeight + (isPast ? 48 : 72);
   });
@@ -140,6 +142,7 @@ text { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display'
 .tier-title-medium { font-size: 18px; fill: ${colors.titleMedium}; }
 .tier-title-small { font-size: 14px; fill: ${colors.titleSmall}; }
 .header-text { font-weight: 500; font-size: 11px; letter-spacing: 0.3em; text-transform: uppercase; fill: ${colors.header}; }
+.sponsor-name { font-weight: 400; fill: ${colors.titleSmall}; }
 a:hover g { opacity: 0.8; }
 </style>\n`;
 
@@ -201,6 +204,11 @@ a:hover g { opacity: 0.8; }
         svg += `<image x="0" y="0" width="${size}" height="${size}" href="${escapeXml(avatarUrl)}" clip-path="url(#clip-${id})" preserveAspectRatio="xMidYMid slice"/>\n`;
       } else {
         svg += `<circle cx="${size / 2}" cy="${size / 2}" r="${size / 2}" fill="${colors.fallbackAvatar}"/>\n`;
+      }
+
+      if (!isPast) {
+        const fontSize = size >= 80 ? 11 : 9;
+        svg += `<text x="${size / 2}" y="${size + fontSize + 4}" text-anchor="middle" class="sponsor-name" font-size="${fontSize}px">${escapeXml(sponsor.name)}</text>\n`;
       }
 
       svg += `</g>\n</a>\n`;

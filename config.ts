@@ -37,9 +37,13 @@ export const config = {
     },
   ],
 
-  tierOverrides: {
-    yyx990803: "Rent Relief Sponsors",
-  } as Record<string, string>,
+  /**
+   * Override monthly dollar amounts for sponsors whose tier info is unavailable from the API.
+   * The amount is used to infer the appropriate tier automatically.
+   */
+  amountOverrides: {
+    yyx990803: 256,
+  } as Record<string, number>,
 
   githubToken: process.env.GITHUB_TOKEN,
   githubLogin: process.env.GITHUB_LOGIN,
