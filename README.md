@@ -4,7 +4,7 @@
   <img src="https://raw.githubusercontent.com/ubugeeei/sponsors/main/sponsors.png" alt="ubugeeei's sponsors" />
 </p>
 
-Elegant sponsor display generator. Creates SVG/PNG from GitHub Sponsors data, auto-updates every 15 minutes.
+Elegant sponsor display generator. Creates SVG/PNG from GitHub Sponsors data, auto-updates every hour.
 
 ## Quick Start
 
@@ -32,7 +32,7 @@ bun install && bun run build
 - Independent (no Sponsorkit)
 - SSH authentication support via GitHub CLI
 - Full Japanese support
-- Automated via GitHub Actions (15 min intervals)
+- Automated via GitHub Actions (hourly)
 
 ## License
 
