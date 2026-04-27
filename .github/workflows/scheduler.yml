@@ -22,13 +22,16 @@ jobs:
 
       - run: bun install
 
+      - name: Install Playwright browsers
+        run: bunx playwright install --with-deps chromium
+
       - name: Build
         run: bun run build
 
       - name: Generate sponsors
         run: bun run generate
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SPONSORKIT_GITHUB_TOKEN: ${{ secrets.SPONSORKIT_GITHUB_TOKEN }}
           GITHUB_LOGIN: ubugeeei
 
       - name: Commit

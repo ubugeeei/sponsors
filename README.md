@@ -26,6 +26,9 @@ bun install && bun run build
 |----------|----------|-------|
 | `GITHUB_LOGIN` | ✅ | GitHub username/org |
 | `GITHUB_TOKEN` | ❌ | PAT (optional if using GitHub CLI SSH) |
+| `SPONSORKIT_GITHUB_TOKEN` | ❌ | Required for GitHub Actions. Use a PAT from the sponsored account so tier amounts are available. |
+
+For the scheduled workflow, add `SPONSORKIT_GITHUB_TOKEN` as a repository secret. The built-in Actions token can fetch sponsor logins, but not enough tier data for this layout.
 
 ## Features
 

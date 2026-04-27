@@ -45,6 +45,6 @@ export const config = {
     yyx990803: 256,
   } as Record<string, number>,
 
-  githubToken: process.env.GITHUB_TOKEN,
+  githubToken: process.env.SPONSORKIT_GITHUB_TOKEN || process.env.GITHUB_TOKEN,
   githubLogin: process.env.GITHUB_LOGIN,
 };
