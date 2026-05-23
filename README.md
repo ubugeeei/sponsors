@@ -4,7 +4,7 @@
   <img src="https://raw.githubusercontent.com/ubugeeei/sponsors/main/sponsors.png" alt="ubugeeei's sponsors" />
 </p>
 
-Elegant sponsor display generator. Creates SVG/PNG from GitHub Sponsors data, auto-updates every 15 minutes.
+Elegant sponsor display generator. Creates SVG/PNG from GitHub Sponsors data, auto-updates every hour.
 
 ## Quick Start
 
@@ -26,13 +26,16 @@ bun install && bun run build
 |----------|----------|-------|
 | `GITHUB_LOGIN` | ✅ | GitHub username/org |
 | `GITHUB_TOKEN` | ❌ | PAT (optional if using GitHub CLI SSH) |
+| `SPONSORKIT_GITHUB_TOKEN` | ❌ | Required for GitHub Actions. Use a PAT from the sponsored account so tier amounts are available. |
+
+For the scheduled workflow, add `SPONSORKIT_GITHUB_TOKEN` as a repository secret. The built-in Actions token can fetch sponsor logins, but not enough tier data for this layout.
 
 ## Features
 
 - Independent (no Sponsorkit)
 - SSH authentication support via GitHub CLI
 - Full Japanese support
-- Automated via GitHub Actions (15 min intervals)
+- Automated via GitHub Actions (hourly)
 
 ## License
 
