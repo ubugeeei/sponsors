@@ -32,7 +32,7 @@ export const config = {
       monthlyDollars: 64,
     },
     {
-      title: "Blue Note Sponsor",
+      title: "Blue Note Sponsors",
       monthlyDollars: 85,
     },
     {
