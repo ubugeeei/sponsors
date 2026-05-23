@@ -32,6 +32,10 @@ export const config = {
       monthlyDollars: 64,
     },
     {
+      title: "Blue Note Sponsor",
+      monthlyDollars: 85,
+    },
+    {
       title: "Rent Relief Sponsors",
       monthlyDollars: 256,
     },
