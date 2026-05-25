@@ -13,12 +13,6 @@ export const config = {
       monthlyDollars: -1,
     },
     {
-      title: "OneShot Sponsors",
-      // Sentinel: -1 < this < chibi. The classifier matches by title for one-time sponsorships,
-      // and the composer surfaces it as its own group.
-      monthlyDollars: 1,
-    },
-    {
       title: "chibi Funs",
       monthlyDollars: 0,
     },

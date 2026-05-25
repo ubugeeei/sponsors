@@ -182,24 +182,34 @@ export function classifySponsors(
   }
 
   const pastSponsorsTier = tiers.find((t) => t.title.toLowerCase().includes("past"));
-  const oneShotTier = tiers.find((t) => t.title.toLowerCase().includes("oneshot") || t.title.toLowerCase().includes("one-shot") || t.title.toLowerCase().includes("one shot"));
+  const activeTiers = tiers.filter((t) => !t.title.toLowerCase().includes("past"));
+
+  const placeByAmount = (sponsor: Sponsor): boolean => {
+    for (let i = activeTiers.length - 1; i >= 0; i--) {
+      if (sponsor.monthlyDollars >= activeTiers[i].monthlyDollars) {
+        classified.get(activeTiers[i].title)?.push(sponsor);
+        return true;
+      }
+    }
+    return false;
+  };
 
   for (const sponsor of sponsors) {
     let placed = false;
 
-    // One-time sponsorships get their own tier (regardless of active/past).
-    if (sponsor.isOneTime && oneShotTier) {
-      classified.get(oneShotTier.title)?.push(sponsor);
-      placed = true;
+    // One-time sponsorships skip the past-check and classify by the tier amount that matches their
+    // payment. They get a "one-time" annotation in the composer but appear at the tier-appropriate size.
+    if (sponsor.isOneTime) {
+      placed = placeByAmount(sponsor);
     }
 
-    // Inactive sponsors go to "Past Sponsors" tier
+    // Inactive (non-one-time) sponsors go to "Past Sponsors" tier.
     if (!placed && !sponsor.isActive && pastSponsorsTier) {
       classified.get(pastSponsorsTier.title)?.push(sponsor);
       placed = true;
     }
 
-    // Try to match by tier name (active sponsors only)
+    // Try to match by tier name (active sponsors only).
     if (!placed && sponsor.tier?.title) {
       const matchingTier = tiers.find(
         (t) => t.title.toLowerCase() === sponsor.tier!.title.toLowerCase(),
@@ -210,16 +220,9 @@ export function classifySponsors(
       }
     }
 
-    // Fallback: classify by amount
+    // Fallback: classify by amount.
     if (!placed) {
-      const activeTiers = tiers.filter((t) => !t.title.toLowerCase().includes("past"));
-      for (let i = activeTiers.length - 1; i >= 0; i--) {
-        if (sponsor.monthlyDollars >= activeTiers[i].monthlyDollars) {
-          classified.get(activeTiers[i].title)?.push(sponsor);
-          placed = true;
-          break;
-        }
-      }
+      placed = placeByAmount(sponsor);
     }
 
     // Last resort: place in first non-past tier

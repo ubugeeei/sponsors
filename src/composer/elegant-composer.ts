@@ -134,7 +134,6 @@ function formatTierMeta(tier: Tier): string {
 
 const TIER_LABEL_OVERRIDES: Record<string, string> = {
   "slightly fancier hair salon": "FANCIER",
-  oneshot: "ONESHOT",
 };
 
 function shortTierTitle(title: string): string {
@@ -200,7 +199,10 @@ function layoutSponsorAvatars(
   const innerW = cell.w - innerInset.side * 2;
   const innerH = cell.h - innerInset.top - innerInset.bottom;
   const gap = isFooter ? 10 : Math.max(10, Math.round(baseSize * 0.22));
-  const captionH = showName ? (isHero ? 28 : 16) : 0;
+  // One-time sponsors always carry a "one-time" annotation under the avatar, so reserve caption
+  // height whenever the cell contains any of them (even if it wouldn't normally show names).
+  const hasOneTime = sponsors.some((s) => s.isOneTime === true);
+  const captionH = showName || hasOneTime ? (isHero ? 28 : 16) : 0;
 
   const { size, cols, rows } = packGrid(
     sponsors.length,
@@ -230,6 +232,9 @@ function layoutSponsorAvatars(
     const startX = cell.x + (cell.w - rowW) / 2;
     const col = i % cols;
     const sponsor = sponsors[i];
+    const isOneTime = sponsor.isOneTime === true;
+    const primary = showName ? fitName(sponsor.name, nameAllot, nameFs) : undefined;
+    const secondary = isOneTime ? "one-time" : undefined;
     out.push({
       uid: `s-${cell.index}-${i}`,
       x: startX + col * (size + gap),
@@ -238,7 +243,7 @@ function layoutSponsorAvatars(
       shape: "circle",
       href: sponsor.profile || "#",
       avatarUrl: (sponsor as any).avatarUrlBase64 || sponsor.avatarUrl || "",
-      caption: showName ? { primary: fitName(sponsor.name, nameAllot, nameFs) } : undefined,
+      caption: primary || secondary ? { primary, secondary } : undefined,
       opacity: isFooter ? 0.55 : 1,
       ring: isFooter ? "none" : "thin",
     });
@@ -334,15 +339,20 @@ function renderAvatar(a: AvatarRender, palette: Palette): string {
     }
   }
 
-  if (a.caption?.primary) {
+  if (a.caption?.primary || a.caption?.secondary) {
     const isLarge = a.size >= 110;
     const isMed = a.size >= 70;
     const fs = isLarge ? 18 : isMed ? 11 : 10;
     const baselineY = a.size + fs + 10;
-    svg += `<text x="${r}" y="${baselineY}" text-anchor="middle" class="${isLarge ? "name-hero" : "name"}">${escapeXml(a.caption.primary)}</text>\n`;
-    if (a.caption.secondary) {
-      const subY = baselineY + (isLarge ? 18 : 14);
-      svg += `<text x="${r}" y="${subY}" text-anchor="middle" class="name-sub">${escapeXml(a.caption.secondary.toUpperCase())}</text>\n`;
+    if (a.caption.primary) {
+      svg += `<text x="${r}" y="${baselineY}" text-anchor="middle" class="${isLarge ? "name-hero" : "name"}">${escapeXml(a.caption.primary)}</text>\n`;
+      if (a.caption.secondary) {
+        const subY = baselineY + (isLarge ? 18 : 14);
+        svg += `<text x="${r}" y="${subY}" text-anchor="middle" class="name-sub">${escapeXml(a.caption.secondary.toUpperCase())}</text>\n`;
+      }
+    } else if (a.caption.secondary) {
+      // Secondary-only — typically a one-time annotation in a cell that doesn't show names.
+      svg += `<text x="${r}" y="${baselineY}" text-anchor="middle" class="name-sub">${escapeXml(a.caption.secondary.toUpperCase())}</text>\n`;
     }
   }
 
