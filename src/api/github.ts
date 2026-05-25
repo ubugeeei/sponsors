@@ -19,6 +19,7 @@ const SPONSORS_QUERY = `
         nodes {
           tier {
             name
+            isOneTime
             monthlyPriceInCents
           }
           sponsorEntity {
@@ -84,6 +85,9 @@ async function fetchSponsorsWithFlag(
       const monthlyDollars = node.tier
         ? node.tier.monthlyPriceInCents / 100
         : (amountOverrides?.[sponsorLogin] ?? 0);
+      // Detect one-time sponsorships via the tier they bought into. (Sponsorship.isOneTimePayment
+      // would be more accurate but requires the read:user scope; tier.isOneTime works with repo scope.)
+      const isOneTime = node.tier?.isOneTime === true;
 
       sponsors.push({
         login: sponsorLogin,
@@ -92,6 +96,7 @@ async function fetchSponsorsWithFlag(
         profile: node.sponsorEntity.url,
         monthlyDollars,
         isActive: true,
+        isOneTime,
         tier: node.tier
           ? {
               title: node.tier.name,
@@ -177,12 +182,19 @@ export function classifySponsors(
   }
 
   const pastSponsorsTier = tiers.find((t) => t.title.toLowerCase().includes("past"));
+  const oneShotTier = tiers.find((t) => t.title.toLowerCase().includes("oneshot") || t.title.toLowerCase().includes("one-shot") || t.title.toLowerCase().includes("one shot"));
 
   for (const sponsor of sponsors) {
     let placed = false;
 
+    // One-time sponsorships get their own tier (regardless of active/past).
+    if (sponsor.isOneTime && oneShotTier) {
+      classified.get(oneShotTier.title)?.push(sponsor);
+      placed = true;
+    }
+
     // Inactive sponsors go to "Past Sponsors" tier
-    if (!sponsor.isActive && pastSponsorsTier) {
+    if (!placed && !sponsor.isActive && pastSponsorsTier) {
       classified.get(pastSponsorsTier.title)?.push(sponsor);
       placed = true;
     }

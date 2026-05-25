@@ -3,11 +3,12 @@
  * Main entry point
  */
 
-import { writeFileSync } from "fs";
+import { writeFileSync, mkdirSync } from "fs";
 import { fetchSponsors, classifySponsors } from "./api/github";
 import { elegantComposer, type ComposerOptions } from "./composer/elegant-composer";
 import { convertToPng } from "./png-converter";
 import { config } from "../config";
+import type { Tool } from "./types";
 
 interface OutputVariant {
   name: string;
@@ -113,6 +114,82 @@ ${svgContent}
 </html>`;
 }
 
+/**
+ * Local-preview HTML — renders all three variants on different backgrounds so the
+ * dark / transparent / dark-text outputs can be eyeballed side-by-side.
+ * Written only when running with a non-default OUTPUT_DIR (e.g. `bun run preview`).
+ */
+function generatePreviewHtml(): string {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Sponsors · Preview</title>
+  <style>
+    :root { font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif; }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 0; color: #111; }
+    .row { padding: 56px 48px; }
+    .row + .row { border-top: 1px solid rgba(0,0,0,0.06); }
+    .row.dark { background: #0a0a0a; color: #fff; }
+    .row.light { background: #f4f4f0; }
+    .row.checker {
+      background-color: #fafafa;
+      background-image:
+        linear-gradient(45deg, #e9e9e6 25%, transparent 25%),
+        linear-gradient(-45deg, #e9e9e6 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #e9e9e6 75%),
+        linear-gradient(-45deg, transparent 75%, #e9e9e6 75%);
+      background-size: 22px 22px;
+      background-position: 0 0, 0 11px, 11px -11px, -11px 0px;
+    }
+    .label {
+      font-size: 11px;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      font-weight: 500;
+      opacity: 0.55;
+      margin: 0 0 24px;
+    }
+    img, object {
+      display: block;
+      max-width: 1200px;
+      width: 100%;
+      height: auto;
+    }
+    .meta {
+      font-size: 12px;
+      opacity: 0.45;
+      margin-top: 16px;
+      font-family: ui-monospace, SFMono-Regular, monospace;
+    }
+  </style>
+</head>
+<body>
+  <div class="row dark">
+    <p class="label">01 · Default (sponsors.svg) on #0a0a0a</p>
+    <img src="sponsors.svg" alt="sponsors default">
+    <p class="meta">sponsors.svg / sponsors.png — dark canvas built in</p>
+  </div>
+  <div class="row light">
+    <p class="label">02 · Transparent (sponsors-transparent-dark.svg) on light</p>
+    <img src="sponsors-transparent-dark.svg" alt="sponsors transparent dark">
+    <p class="meta">sponsors-transparent-dark.svg — dark-text variant, use on light surfaces</p>
+  </div>
+  <div class="row dark">
+    <p class="label">03 · Transparent (sponsors-transparent.svg) on dark</p>
+    <img src="sponsors-transparent.svg" alt="sponsors transparent light">
+    <p class="meta">sponsors-transparent.svg — light-text variant, use on dark surfaces</p>
+  </div>
+  <div class="row checker">
+    <p class="label">04 · Transparent (sponsors-transparent.svg) on checker</p>
+    <img src="sponsors-transparent.svg" alt="sponsors transparent on checker">
+    <p class="meta">Quick transparency sanity check</p>
+  </div>
+</body>
+</html>`;
+}
+
 async function main() {
   try {
     if (!config.githubLogin) {
@@ -121,11 +198,15 @@ async function main() {
       );
     }
 
+    // Ensure the output directory exists (relevant for preview mode where it's a fresh subdir).
+    mkdirSync(config.outputDir, { recursive: true });
+
     console.log("");
     console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     console.log("  SPONSOR KIT - Monochrome Edition");
     console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     console.log(`  GitHub: ${config.githubLogin}`);
+    console.log(`  Output: ${config.outputDir}`);
     console.log("");
 
     // Fetch sponsors from GitHub API
@@ -140,6 +221,16 @@ async function main() {
     // Embed avatar images as base64
     console.log("→ Embedding avatar images...");
     await embedAvatarImages(sponsors);
+
+    // Resolve tool sponsors (uses GitHub avatar redirect)
+    const tools: Tool[] = (config.tools ?? []).map((t) => ({
+      ...t,
+      avatarUrl: `https://github.com/${t.login}.png?size=256`,
+    }));
+    if (tools.length > 0) {
+      console.log("→ Embedding tool sponsor avatars...");
+      await embedAvatarImages(tools as any);
+    }
 
     // Classify sponsors by tier
     console.log("→ Classifying sponsors by tier...");
@@ -157,7 +248,10 @@ async function main() {
     // Generate SVGs for all variants
     console.log("→ Generating SVGs...");
     const svgResults = OUTPUT_VARIANTS.map((variant) => {
-      const content = elegantComposer(tierSponsors, config.tiers, config.width, variant.options);
+      const content = elegantComposer(tierSponsors, config.tiers, config.width, {
+        ...variant.options,
+        tools,
+      });
       const svgPath = `${config.outputDir}/${variant.name}.svg`;
       writeFileSync(svgPath, content, "utf-8");
       console.log(`  ✓ ${svgPath}`);
@@ -168,6 +262,14 @@ async function main() {
     const htmlPath = `${config.outputDir}/sponsors.html`;
     writeFileSync(htmlPath, generateHtmlWrapper(svgResults[0].content), "utf-8");
     console.log(`  ✓ ${htmlPath}`);
+
+    // In preview mode (any non-default outputDir), emit a side-by-side viewer
+    // as index.html so `vite preview --outDir preview` serves it at /.
+    if (config.outputDir !== ".") {
+      const indexPath = `${config.outputDir}/index.html`;
+      writeFileSync(indexPath, generatePreviewHtml(), "utf-8");
+      console.log(`  ✓ ${indexPath}`);
+    }
 
     // Convert all variants to PNG
     for (const { name, content, transparent } of svgResults) {

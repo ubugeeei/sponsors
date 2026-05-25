@@ -3,13 +3,20 @@
  */
 
 export const config = {
-  width: 800,
-  outputDir: ".",
+  width: 1200,
+  // Override with OUTPUT_DIR (e.g. `OUTPUT_DIR=preview` to write to a gitignored preview dir).
+  outputDir: process.env.OUTPUT_DIR || ".",
 
   tiers: [
     {
       title: "Past Sponsors",
       monthlyDollars: -1,
+    },
+    {
+      title: "OneShot Sponsors",
+      // Sentinel: -1 < this < chibi. The classifier matches by title for one-time sponsorships,
+      // and the composer surfaces it as its own group.
+      monthlyDollars: 1,
     },
     {
       title: "chibi Funs",
@@ -48,6 +55,27 @@ export const config = {
   amountOverrides: {
     yyx990803: 256,
   } as Record<string, number>,
+
+  /**
+   * Tool Sponsors — products / services that materially support the work.
+   * Rendered in a dedicated cell of the layout. `emphasis: "large"` gets a hero treatment within the cell.
+   */
+  tools: [
+    {
+      login: "openai",
+      name: "OpenAI",
+      role: "AI",
+      emphasis: "large" as const,
+      profile: "https://github.com/openai",
+    },
+    {
+      login: "icarusgk",
+      name: "icarusgk",
+      role: "Font",
+      emphasis: "small" as const,
+      profile: "https://github.com/icarusgk",
+    },
+  ],
 
   githubToken: process.env.SPONSORKIT_GITHUB_TOKEN || process.env.GITHUB_TOKEN,
   githubLogin: process.env.GITHUB_LOGIN,
