@@ -197,13 +197,15 @@ export function classifySponsors(
   for (const sponsor of sponsors) {
     let placed = false;
 
-    // One-time sponsorships skip the past-check and classify by the tier amount that matches their
-    // payment. They get a "one-time" annotation in the composer but appear at the tier-appropriate size.
-    if (sponsor.isOneTime) {
+    // A one-time sponsorship grants benefits for 30 days; while inside that window GitHub keeps
+    // it in the activeOnly list (isActive=true). After expiry the API drops it from the active
+    // set and we mark isActive=false above — so this single check naturally archives stale
+    // one-time payments without us needing to fetch createdAt (which requires read:user scope).
+    if (sponsor.isOneTime && sponsor.isActive) {
       placed = placeByAmount(sponsor);
     }
 
-    // Inactive (non-one-time) sponsors go to "Past Sponsors" tier.
+    // Inactive sponsors (including expired one-time payments) go to the "Past Sponsors" tier.
     if (!placed && !sponsor.isActive && pastSponsorsTier) {
       classified.get(pastSponsorsTier.title)?.push(sponsor);
       placed = true;

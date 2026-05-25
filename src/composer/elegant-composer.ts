@@ -199,9 +199,11 @@ function layoutSponsorAvatars(
   const innerW = cell.w - innerInset.side * 2;
   const innerH = cell.h - innerInset.top - innerInset.bottom;
   const gap = isFooter ? 10 : Math.max(10, Math.round(baseSize * 0.22));
-  // One-time sponsors always carry a "one-time" annotation under the avatar, so reserve caption
-  // height whenever the cell contains any of them (even if it wouldn't normally show names).
-  const hasOneTime = sponsors.some((s) => s.isOneTime === true);
+  // One-time sponsors carry a "one-time" annotation under the avatar — reserve caption height
+  // whenever the cell contains any of them. Suppressed in the footer (avatars are too tiny there;
+  // stale one-time payments are archived anyway so the distinction is no longer load-bearing).
+  const annotateOneTime = !isFooter;
+  const hasOneTime = annotateOneTime && sponsors.some((s) => s.isOneTime === true);
   const captionH = showName || hasOneTime ? (isHero ? 28 : 16) : 0;
 
   const { size, cols, rows } = packGrid(
@@ -234,7 +236,7 @@ function layoutSponsorAvatars(
     const sponsor = sponsors[i];
     const isOneTime = sponsor.isOneTime === true;
     const primary = showName ? fitName(sponsor.name, nameAllot, nameFs) : undefined;
-    const secondary = isOneTime ? "one-time" : undefined;
+    const secondary = isOneTime && annotateOneTime ? "one-time" : undefined;
     out.push({
       uid: `s-${cell.index}-${i}`,
       x: startX + col * (size + gap),
