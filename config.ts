@@ -69,6 +69,13 @@ export const config = {
       emphasis: "small" as const,
       profile: "https://github.com/icarusgk",
     },
+    {
+      login: "useblacksmith",
+      name: "Blacksmith",
+      role: "CI",
+      emphasis: "small" as const,
+      profile: "https://github.com/useblacksmith",
+    },
   ],
 
   githubToken: process.env.SPONSORKIT_GITHUB_TOKEN || process.env.GITHUB_TOKEN,
