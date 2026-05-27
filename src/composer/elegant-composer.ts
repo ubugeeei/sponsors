@@ -260,46 +260,40 @@ function layoutToolAvatars(cell: ToolsCell): AvatarRender[] {
   const innerW = cell.w - innerSide * 2;
   const innerH = cell.h - top - bottom;
 
-  const large = cell.tools.find((t) => t.emphasis === "large") ?? cell.tools[0];
-  const smalls = cell.tools.filter((t) => t !== large);
+  // Tight caption + gap; this matches how renderAvatar lays out primary + secondary captions.
+  const captionH = 34;
+  const rowGap = 24;
 
-  const out: AvatarRender[] = [];
-  const largeSize = Math.min(140, Math.floor(innerW * 0.82));
-  const smallSize = 60;
-  const captionH = 40;
-  const rowGap = 36;
+  // Base sizes — shrink uniformly if the column can't fit all tools at full size.
+  let largeSize = Math.min(140, Math.floor(innerW * 0.82));
+  let smallSize = 56;
 
-  // Vertical stack: large block on top, divider, small block below.
-  const largeBlockH = largeSize + captionH;
-  const smallBlockH = smallSize + captionH;
-  const totalH = largeBlockH + (smalls.length > 0 ? rowGap + smallBlockH * smalls.length : 0);
-  let cursorY = cell.y + top + Math.max(0, (innerH - totalH) / 2);
+  const sizeFor = (t: Tool) => (t.emphasis === "large" ? largeSize : smallSize);
+  const totalContentH = () =>
+    cell.tools.reduce(
+      (sum, t, i) => sum + sizeFor(t) + captionH + (i > 0 ? rowGap : 0),
+      0,
+    );
 
-  if (large) {
-    const x = cell.x + (cell.w - largeSize) / 2;
-    out.push({
-      uid: `t-${cell.index}-large`,
-      x,
-      y: cursorY,
-      size: largeSize,
-      shape: "squircle",
-      href: large.profile,
-      avatarUrl: large.avatarUrlBase64 || large.avatarUrl || "",
-      caption: { primary: large.name, secondary: large.role },
-      opacity: 1,
-      ring: "thin",
-    });
-    cursorY += largeBlockH + rowGap;
+  // Shrink large first (visually most expensive), then small if still too tall.
+  while (totalContentH() > innerH && largeSize > 76) {
+    largeSize -= 4;
+  }
+  while (totalContentH() > innerH && smallSize > 40) {
+    smallSize -= 2;
   }
 
-  for (let i = 0; i < smalls.length; i++) {
-    const t = smalls[i];
-    const x = cell.x + (cell.w - smallSize) / 2;
+  let cursorY = cell.y + top + Math.max(0, (innerH - totalContentH()) / 2);
+
+  const out: AvatarRender[] = [];
+  cell.tools.forEach((t, i) => {
+    const size = sizeFor(t);
+    const x = cell.x + (cell.w - size) / 2;
     out.push({
-      uid: `t-${cell.index}-s${i}`,
+      uid: `t-${cell.index}-${i}`,
       x,
       y: cursorY,
-      size: smallSize,
+      size,
       shape: "squircle",
       href: t.profile,
       avatarUrl: t.avatarUrlBase64 || t.avatarUrl || "",
@@ -307,8 +301,8 @@ function layoutToolAvatars(cell: ToolsCell): AvatarRender[] {
       opacity: 1,
       ring: "thin",
     });
-    cursorY += smallBlockH + rowGap;
-  }
+    cursorY += size + captionH + rowGap;
+  });
   return out;
 }
 
@@ -477,7 +471,7 @@ export function elegantComposer(
     ? innerW - HERO_W - TOOLS_W - GUTTER * 2
     : innerW - HERO_W - GUTTER;
   const ROW1_H = 360;
-  const STRIP_H = 100;
+  const STRIP_H = 116;
   let currentY = PAD + HEADER_H;
 
   // Hero — top tier sponsor.

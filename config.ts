@@ -63,18 +63,18 @@ export const config = {
       profile: "https://github.com/openai",
     },
     {
+      login: "useblacksmith",
+      name: "Blacksmith",
+      role: "CI",
+      emphasis: "large" as const,
+      profile: "https://github.com/useblacksmith",
+    },
+    {
       login: "icarusgk",
       name: "icarusgk",
       role: "Font",
       emphasis: "small" as const,
       profile: "https://github.com/icarusgk",
-    },
-    {
-      login: "useblacksmith",
-      name: "Blacksmith",
-      role: "CI",
-      emphasis: "small" as const,
-      profile: "https://github.com/useblacksmith",
     },
   ],
 
