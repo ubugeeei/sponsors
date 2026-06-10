@@ -37,7 +37,11 @@ ${svgString}
     tempHtmlPath = path.join(path.dirname(outputPath), ".sponsors-temp.html");
     writeFileSync(tempHtmlPath, htmlContent, "utf-8");
 
-    browser = await chromium.launch();
+    const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
+    browser = await chromium.launch({
+      executablePath: executablePath || undefined,
+      args: ["--no-sandbox"],
+    });
     const page = await browser.newPage();
 
     const fileUrl = `file://${path.resolve(tempHtmlPath)}`;

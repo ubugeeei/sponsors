@@ -125,13 +125,6 @@ function avatarSizeForDollars(dollars: number): number {
   return 30;
 }
 
-function formatTierMeta(tier: Tier): string {
-  const d = tier.monthlyDollars ?? 0;
-  if (d < 0) return "ARCHIVE";
-  if (d === 0) return "$0";
-  return `$${d}+/mo`;
-}
-
 const TIER_LABEL_OVERRIDES: Record<string, string> = {
   "slightly fancier hair salon": "FANCIER",
 };

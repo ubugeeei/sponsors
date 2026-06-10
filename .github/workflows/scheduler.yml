@@ -11,9 +11,14 @@ on:
     branches:
       - main
 
+concurrency:
+  group: scheduled-update-sponsors
+  cancel-in-progress: true
+
 jobs:
   update-sponsors:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -31,8 +36,15 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Install Playwright browsers
-        run: pnpm exec playwright install --with-deps chromium
+      - name: Use hosted Chrome
+        run: |
+          CHROME_PATH="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser)"
+          if [ -z "$CHROME_PATH" ]; then
+            echo "Chrome executable was not found on the runner." >&2
+            exit 1
+          fi
+          "$CHROME_PATH" --version
+          echo "PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=$CHROME_PATH" >> "$GITHUB_ENV"
 
       - name: Build
         run: pnpm run build
