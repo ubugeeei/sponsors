@@ -56,11 +56,11 @@ export const config = {
    */
   tools: [
     {
-      login: "openai",
-      name: "OpenAI",
+      login: "anthropics",
+      name: "Anthropic",
       role: "AI",
       emphasis: "large" as const,
-      profile: "https://github.com/openai",
+      profile: "https://github.com/anthropics",
     },
     {
       login: "useblacksmith",
@@ -75,6 +75,19 @@ export const config = {
       role: "Font",
       emphasis: "small" as const,
       profile: "https://github.com/icarusgk",
+    },
+  ],
+
+  /**
+   * Former Tool Sponsors rendered as historical support in the tools cell.
+   */
+  pastTools: [
+    {
+      login: "openai",
+      name: "OpenAI",
+      role: "AI",
+      emphasis: "large" as const,
+      profile: "https://github.com/openai",
     },
   ],
 

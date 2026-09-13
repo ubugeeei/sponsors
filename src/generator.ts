@@ -84,6 +84,13 @@ async function embedAvatarImages(sponsors: any[]): Promise<void> {
   console.log(`   ✓ Avatar images: ${successCount} loaded, ${failCount} failed`);
 }
 
+function resolveTools(tools: Tool[] = []): Tool[] {
+  return tools.map((tool) => ({
+    ...tool,
+    avatarUrl: `https://github.com/${tool.login}.png?size=256`,
+  }));
+}
+
 function generateHtmlWrapper(svgContent: string): string {
   return `<!DOCTYPE html>
 <html lang="ja">
@@ -223,13 +230,12 @@ async function main() {
     await embedAvatarImages(sponsors);
 
     // Resolve tool sponsors (uses GitHub avatar redirect)
-    const tools: Tool[] = (config.tools ?? []).map((t) => ({
-      ...t,
-      avatarUrl: `https://github.com/${t.login}.png?size=256`,
-    }));
-    if (tools.length > 0) {
+    const tools = resolveTools(config.tools ?? []);
+    const pastTools = resolveTools(config.pastTools ?? []);
+    const allTools = [...tools, ...pastTools];
+    if (allTools.length > 0) {
       console.log("→ Embedding tool sponsor avatars...");
-      await embedAvatarImages(tools as any);
+      await embedAvatarImages(allTools as any);
     }
 
     // Classify sponsors by tier
@@ -251,6 +257,7 @@ async function main() {
       const content = elegantComposer(tierSponsors, config.tiers, config.width, {
         ...variant.options,
         tools,
+        pastTools,
       });
       const svgPath = `${config.outputDir}/${variant.name}.svg`;
       writeFileSync(svgPath, content, "utf-8");

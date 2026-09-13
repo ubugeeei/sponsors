@@ -13,6 +13,7 @@ export interface ComposerOptions {
   transparent?: boolean;
   darkText?: boolean;
   tools?: Tool[];
+  pastTools?: Tool[];
 }
 
 type Palette = {
@@ -85,6 +86,7 @@ type SponsorCell = {
 type ToolsCell = {
   kind: "tools";
   tools: Tool[];
+  pastTools: Tool[];
   x: number;
   y: number;
   w: number;
@@ -105,6 +107,11 @@ type AvatarRender = {
   caption?: { primary?: string; secondary?: string };
   opacity: number;
   ring: "none" | "thin" | "hero";
+};
+
+type ToolAvatarEntry = {
+  tool: Tool;
+  past: boolean;
 };
 
 const PAD = 36;
@@ -247,6 +254,10 @@ function layoutSponsorAvatars(
 }
 
 function layoutToolAvatars(cell: ToolsCell): AvatarRender[] {
+  const toolEntries: ToolAvatarEntry[] = [
+    ...cell.tools.map((tool) => ({ tool, past: false })),
+    ...cell.pastTools.map((tool) => ({ tool, past: true })),
+  ];
   const innerSide = 20;
   const top = 70;
   const bottom = 22;
@@ -255,47 +266,87 @@ function layoutToolAvatars(cell: ToolsCell): AvatarRender[] {
 
   // Tight caption + gap; this matches how renderAvatar lays out primary + secondary captions.
   const captionH = 34;
-  const rowGap = 24;
+  let rowGap = 20;
+  const compactRowGap = 18;
+  const compactColGap = 18;
 
-  // Base sizes — shrink uniformly if the column can't fit all tools at full size.
-  let largeSize = Math.min(140, Math.floor(innerW * 0.82));
-  let smallSize = 56;
+  const largeEntries = toolEntries.filter(
+    (entry) => !entry.past && entry.tool.emphasis === "large",
+  );
+  const compactEntries = toolEntries.filter(
+    (entry) => entry.past || entry.tool.emphasis === "small",
+  );
 
-  const sizeFor = (t: Tool) => (t.emphasis === "large" ? largeSize : smallSize);
+  // Large active sponsors get the vertical hero treatment; compact/past sponsors share rows below.
+  let largeSize = Math.min(112, Math.floor(innerW * 0.72));
+  let smallSize = 44;
+
+  const compactCols = () =>
+    compactEntries.length > 1 && innerW >= smallSize * 2 + compactColGap ? 2 : 1;
+  const compactBlockH = () => {
+    if (compactEntries.length === 0) return 0;
+    const rows = Math.ceil(compactEntries.length / compactCols());
+    return rows * (smallSize + captionH) + (rows - 1) * compactRowGap;
+  };
+  const largeBlockH = () =>
+    largeEntries.reduce((sum, _entry, i) => sum + largeSize + captionH + (i > 0 ? rowGap : 0), 0);
   const totalContentH = () =>
-    cell.tools.reduce(
-      (sum, t, i) => sum + sizeFor(t) + captionH + (i > 0 ? rowGap : 0),
-      0,
-    );
+    largeBlockH() +
+    (largeEntries.length > 0 && compactEntries.length > 0 ? rowGap : 0) +
+    compactBlockH();
 
-  // Shrink large first (visually most expensive), then small if still too tall.
+  // Shrink large first (visually most expensive), then compact rows/gaps if still too tall.
   while (totalContentH() > innerH && largeSize > 76) {
     largeSize -= 4;
   }
-  while (totalContentH() > innerH && smallSize > 40) {
+  while (totalContentH() > innerH && smallSize > 36) {
     smallSize -= 2;
+  }
+  while (totalContentH() > innerH && rowGap > 12) {
+    rowGap -= 2;
   }
 
   let cursorY = cell.y + top + Math.max(0, (innerH - totalContentH()) / 2);
 
   const out: AvatarRender[] = [];
-  cell.tools.forEach((t, i) => {
-    const size = sizeFor(t);
-    const x = cell.x + (cell.w - size) / 2;
+
+  const pushEntry = (entry: ToolAvatarEntry, i: number, x: number, y: number, size: number) => {
+    const t = entry.tool;
     out.push({
       uid: `t-${cell.index}-${i}`,
       x,
-      y: cursorY,
+      y,
       size,
       shape: "squircle",
       href: t.profile,
       avatarUrl: t.avatarUrlBase64 || t.avatarUrl || "",
-      caption: { primary: t.name, secondary: t.role },
-      opacity: 1,
+      caption: { primary: t.name, secondary: entry.past ? `Past ${t.role}` : t.role },
+      opacity: entry.past ? 0.48 : 1,
       ring: "thin",
     });
-    cursorY += size + captionH + rowGap;
+  };
+
+  largeEntries.forEach((entry, i) => {
+    const x = cell.x + (cell.w - largeSize) / 2;
+    pushEntry(entry, i, x, cursorY, largeSize);
+    cursorY += largeSize + captionH + (i < largeEntries.length - 1 ? rowGap : 0);
   });
+
+  if (compactEntries.length > 0) {
+    if (largeEntries.length > 0) cursorY += rowGap;
+    const cols = compactCols();
+    for (let i = 0; i < compactEntries.length; i++) {
+      const row = Math.floor(i / cols);
+      const col = i % cols;
+      const itemsInRow = Math.min(compactEntries.length - row * cols, cols);
+      const rowW = itemsInRow * smallSize + (itemsInRow - 1) * compactColGap;
+      const startX = cell.x + innerSide + (innerW - rowW) / 2;
+      const x = startX + col * (smallSize + compactColGap);
+      const y = cursorY + row * (smallSize + captionH + compactRowGap);
+      pushEntry(compactEntries[i], largeEntries.length + i, x, y, smallSize);
+    }
+  }
+
   return out;
 }
 
@@ -394,15 +445,10 @@ function renderCellMeta(cell: Cell, palette: Palette): string {
   // Stacked meta for hero / feature / tools — N° + display-class tier name.
   const isHero = cell.kind === "hero";
   const ty = cell.y + 26;
-  const count = cell.kind === "tools" ? cell.tools.length : cell.sponsors.length;
+  const count =
+    cell.kind === "tools" ? cell.tools.length + cell.pastTools.length : cell.sponsors.length;
   const countNoun =
-    cell.kind === "tools"
-      ? count === 1
-        ? "ITEM"
-        : "ITEMS"
-      : count === 1
-        ? "SPONSOR"
-        : "SPONSORS";
+    cell.kind === "tools" ? (count === 1 ? "ITEM" : "ITEMS") : count === 1 ? "SPONSOR" : "SPONSORS";
   const countStr = `${String(count).padStart(2, "0")} ${countNoun}`;
 
   let svg = `<text x="${lx}" y="${ty}" class="cell-no" fill="${palette.textDim}">${noStr}</text>\n`;
@@ -424,7 +470,7 @@ export function elegantComposer(
   width: number = 1200,
   options: ComposerOptions = {},
 ): string {
-  const { transparent = false, darkText = false, tools = [] } = options;
+  const { transparent = false, darkText = false, tools = [], pastTools = [] } = options;
   const palette = darkText ? DARK_PALETTE : LIGHT_PALETTE;
 
   // Normalize sponsor groupings.
@@ -456,13 +502,11 @@ export function elegantComposer(
   const cells: Cell[] = [];
   let cellIndex = 1;
 
-  const hasTools = tools.length > 0;
+  const hasTools = tools.length > 0 || pastTools.length > 0;
   const HERO_W = hasTools ? 460 : 580;
   const TOOLS_W = 244;
   const innerW = width - PAD * 2;
-  const midW = hasTools
-    ? innerW - HERO_W - TOOLS_W - GUTTER * 2
-    : innerW - HERO_W - GUTTER;
+  const midW = hasTools ? innerW - HERO_W - TOOLS_W - GUTTER * 2 : innerW - HERO_W - GUTTER;
   const ROW1_H = 360;
   const STRIP_H = 116;
   let currentY = PAD + HEADER_H;
@@ -555,14 +599,14 @@ export function elegantComposer(
 
   // Right column — Tools cell stretches across row 1 + any wide strips.
   const wideTiers = activeGroups; // whatever's left
-  const stripsTotalH = wideTiers.length > 0
-    ? wideTiers.length * STRIP_H + (wideTiers.length - 1) * GUTTER
-    : 0;
+  const stripsTotalH =
+    wideTiers.length > 0 ? wideTiers.length * STRIP_H + (wideTiers.length - 1) * GUTTER : 0;
   if (hasTools) {
     const toolsH = ROW1_H + (wideTiers.length > 0 ? GUTTER + stripsTotalH : 0);
     cells.push({
       kind: "tools",
       tools,
+      pastTools,
       x: width - PAD - TOOLS_W,
       y: currentY,
       w: TOOLS_W,
@@ -758,7 +802,7 @@ a:hover g { opacity: 0.78; }
   const totalActive = cells
     .filter((c): c is SponsorCell => c.kind !== "tools")
     .reduce((sum, c) => sum + c.sponsors.length, 0);
-  const totalTools = tools.length;
+  const totalTools = tools.length + pastTools.length;
 
   const headerLx = PAD;
   const headerRx = width - PAD;
